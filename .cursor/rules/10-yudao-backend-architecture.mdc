@@ -10,11 +10,12 @@ alwaysApply: false
 
 | 项 | 约定 |
 |----|------|
-| Java | 1.8（`master` 分支） |
-| Spring Boot | 2.7.18 |
+| 开发分支 | **`master-jdk17`**（本仓库主开发线） |
+| Java | 17 |
+| Spring Boot | 3.5.x |
 | ORM | MyBatis Plus（`BaseMapperX`、`LambdaQueryWrapperX`） |
 | 对象转换 | MapStruct（`XxxConvert.INSTANCE`）或 `BeanUtils.toBean` |
-| 校验 | `javax.validation`（`@NotNull`、`@NotBlank`、`@Size`） |
+| 校验 | `jakarta.validation`（`@NotNull`、`@NotBlank`、`@Size`） |
 | API 文档 | Springdoc / `@Tag` `@Operation` `@Schema` |
 | 缓存/锁 | `yudao-spring-boot-starter-redis`、`starter-protection`（幂等/分布式锁） |
 | 多租户 | `yudao-spring-boot-starter-biz-tenant` |

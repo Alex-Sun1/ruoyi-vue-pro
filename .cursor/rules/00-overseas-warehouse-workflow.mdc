@@ -11,7 +11,8 @@ alwaysApply: true
 
 - 系统：海外仓 WMS / OMS / TMS / YMS / BMS / 通知中心 / 规则引擎 / 基础资料 / 多租户 SaaS
 - 后端基座：**RuoYi-Vue-Pro（芋道 yudao）**，非 RuoYi-Vue-Plus，非 Demo 风格
-- 当前分支：**JDK 8 + Spring Boot 2.7**（`javax.validation`）；权限用 **Spring Security `@PreAuthorize`**，非 Sa-Token
+- 当前分支：**`master-jdk17`**（JDK 17 + Spring Boot 3.5，`jakarta.validation`）；权限用 **Spring Security `@PreAuthorize`**，非 Sa-Token
+- JDK 8 旧分支为 `master`（Spring Boot 2.7，`javax.validation`），海外仓开发统一在 `master-jdk17`
 - 海外仓业务模块（OMS/WMS/TMS 等）**尚未独立建模块**，扩展时新建 `yudao-module-*`，参考 `yudao-module-mes` 的 `wm` 子域与 `yudao-module-erp` 的 `stock` 子域
 
 ## 默认工作流程（强制）
