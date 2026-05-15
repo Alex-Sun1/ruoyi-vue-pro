@@ -1,0 +1,183 @@
+---
+description: RuoYi-Vue-Pro 后端分层架构、命名与模块隔离规范
+globs: yudao-module-*/**/*.java,yudao-framework/**/*.java,yudao-server/**/*.java,sql/**/*
+alwaysApply: false
+---
+
+# RuoYi-Vue-Pro 后端架构规范
+
+## 技术栈（以仓库为准）
+
+| 项 | 约定 |
+|----|------|
+| Java | 1.8（`master` 分支） |
+| Spring Boot | 2.7.18 |
+| ORM | MyBatis Plus（`BaseMapperX`、`LambdaQueryWrapperX`） |
+| 对象转换 | MapStruct（`XxxConvert.INSTANCE`）或 `BeanUtils.toBean` |
+| 校验 | `javax.validation`（`@NotNull`、`@NotBlank`、`@Size`） |
+| API 文档 | Springdoc / `@Tag` `@Operation` `@Schema` |
+| 缓存/锁 | `yudao-spring-boot-starter-redis`、`starter-protection`（幂等/分布式锁） |
+| 多租户 | `yudao-spring-boot-starter-biz-tenant` |
+| 数据权限 | `yudao-spring-boot-starter-biz-data-permission` |
+| MQ/Job | `starter-mq`、`starter-job` |
+
+## Maven 模块结构
+
+```
+yudao-dependencies/     # BOM
+yudao-framework/        # 技术 & 业务 Starter
+yudao-server/           # 启动壳，按需引入 module
+yudao-module-system/    # 用户/角色/菜单/租户/字典
+yudao-module-infra/     # 代码生成/文件/定时任务/API 日志
+yudao-module-erp/       # ERP 库存/采购/销售（参考）
+yudao-module-mes/       # MES，含 wm 仓储子域（参考）
+```
+
+新建海外仓模块示例：`yudao-module-oms`、`yudao-module-wms`、`yudao-module-tms`、`yudao-module-yms`、`yudao-module-bms`。
+
+## 模块三约定（每个 module 的 package-info 必须声明）
+
+1. **Controller URL**：`/{module}/` 前缀，如 `/erp/`、`/mes/wm/`
+2. **表名**：`{module}_` 前缀，如 `erp_stock_in`、`mes_wm_warehouse`
+3. **类名防冲突**：易重名模块加前缀，如 `ErpStockInDO`、`MesWmWarehouseDO`
+
+基准包：`cn.iocoder.yudao.module.{moduleName}`
+
+## 标准包结构
+
+```
+controller/admin/{biz}/vo/     # SaveReqVO、PageReqVO、RespVO
+controller/app/                # C 端 API（类名/VO 加 App 前缀）
+service/{biz}/                 # XxxService + XxxServiceImpl
+dal/dataobject/{biz}/          # XxxDO
+dal/mysql/{biz}/               # XxxMapper extends BaseMapperX
+dal/redis/                     # 可选
+convert/{biz}/                 # MapStruct Convert
+enums/                         # ErrorCodeConstants、业务枚举
+api/{biz}/                     # 跨模块 API（XxxApi + XxxApiImpl + dto/）
+framework/                     # web、datapermission、security 配置
+job/、mq/                      # 可选
+```
+
+## 分层职责
+
+| 层 | 职责 | 禁止 |
+|----|------|------|
+| Controller | 接参、校验、调 Service、返回 `CommonResult` | 业务逻辑、事务、SQL |
+| Service | 业务编排、事务边界、状态校验 | 巨型 if-else 堆叠 |
+| Mapper | 数据访问 | 业务逻辑 |
+| Convert | DO/VO/DTO 转换 | Service 里手写大量 set |
+
+跨模块调用：**禁止**直接注入其他模块 Mapper。使用 `api` 包、`ApplicationEvent` 或领域服务。
+
+## DO 规范
+
+- 命名 **`XxxDO`**，禁止 Entity/Pojo/Model
+- 继承 `BaseDO`（`createTime/updateTime/creator/updater/deleted`）或 **`TenantBaseDO`**（多租户表加 `tenantId`）
+- 注解：`@TableName`、`@TableId`；非 MySQL 自增用 `@KeySequence`
+- 逻辑删除字段：`deleted`（`@TableLogic`）
+
+```java
+@TableName("system_post")
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class PostDO extends BaseDO { ... }
+
+// 多租户业务表
+public class AdminUserDO extends TenantBaseDO { ... }
+```
+
+## VO 规范（本项目主流命名）
+
+| 用途 | 命名 | 说明 |
+|------|------|------|
+| 创建/修改 | `{Xxx}SaveReqVO` | 主流；`id` 可选区分新增/更新 |
+| 分页查询 | `{Xxx}PageReqVO` | 继承 `PageParam` |
+| 列表查询 | `{Xxx}ListReqVO` | 非分页列表 |
+| 响应 | `{Xxx}RespVO` | 单条/列表项 |
+| 精简响应 | `{Xxx}SimpleRespVO` | 下拉/选择器 |
+
+返回统一 `CommonResult<T>`，分页 `PageResult<T>`，使用 `success(...)` 静态方法。
+
+独立 `CreateReqVO`/`UpdateReqVO` 仅在有明确分离需求时使用。
+
+## Convert 规范
+
+```java
+@Mapper
+public interface ConfigConvert {
+    ConfigConvert INSTANCE = Mappers.getMapper(ConfigConvert.class);
+    ConfigRespVO convert(ConfigDO bean);
+    ConfigDO convert(ConfigSaveReqVO bean);
+    PageResult<ConfigRespVO> convertPage(PageResult<ConfigDO> page);
+}
+```
+
+禁止 Service/Controller 大量手写 Bean copy。
+
+## Controller 规范
+
+```java
+@Tag(name = "管理后台 - 岗位")
+@RestController
+@RequestMapping("/system/post")
+@Validated
+public class PostController {
+
+    @PostMapping("/create")
+    @Operation(summary = "创建岗位")
+    @PreAuthorize("@ss.hasPermission('system:post:create')")
+    public CommonResult<Long> createPost(@Valid @RequestBody PostSaveReqVO reqVO) {
+        return success(postService.createPost(reqVO));
+    }
+}
+```
+
+REST 约定：`POST /create`、`PUT /update`、`DELETE /delete`、`GET /get`、`GET /page`。
+导出加 `@ApiAccessLog(operateType = EXPORT)` + `ExcelUtils.write`。
+
+## Service 规范
+
+- 写操作：`@Transactional(rollbackFor = Exception.class)`
+- 异常：`throw exception(ERROR_CODE)`（`ServiceExceptionUtil`）
+- 校验逻辑抽取为 `validateXxxForCreateOrUpdate` 私有方法
+- 查询与更新分离；长流程考虑 MQ/异步
+
+## Mapper 规范
+
+```java
+@Mapper
+public interface PostMapper extends BaseMapperX<PostDO> {
+    default PageResult<PostDO> selectPage(PostPageReqVO reqVO) {
+        return selectPage(reqVO, new LambdaQueryWrapperX<PostDO>()
+            .likeIfPresent(PostDO::getName, reqVO.getName())
+            .eqIfPresent(PostDO::getStatus, reqVO.getStatus())
+            .orderByDesc(PostDO::getId));
+    }
+}
+```
+
+禁止 `select *`；分页/排序字段须有索引。
+
+## 错误码
+
+每模块 `enums/ErrorCodeConstants.java`，10 位分段（见 `ServiceErrorCodeRange`）：
+
+```java
+ErrorCode POST_NOT_FOUND = new ErrorCode(1_002_005_000, "岗位不存在");
+```
+
+新模块须申请独立错误码段并在 `ServiceErrorCodeRange` 注释中登记。MES 示例：`1-040-xxx-xxx`。
+
+## 多租户
+
+- 业务表 DO 继承 `TenantBaseDO`，DB 含 `tenant_id`
+- 回调/全局接口：`@TenantIgnore`（方法/类/DO）
+- 配置：`yudao.tenant.*`（`application.yaml`）
+
+## 数据权限
+
+含 `dept_id` 的表在 `framework/datapermission/config/` 注册 `DeptDataPermissionRuleCustomizer`。
+特殊查询（如按 ID 精确查）可用 `@DataPermission(enable = false)` 或 `DataPermissionUtils.executeIgnore()`。
+
+CRM 另有 `@CrmPermission` 模式，海外仓可按仓库/客户扩展类似 Rule。

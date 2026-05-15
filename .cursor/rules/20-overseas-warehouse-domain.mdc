@@ -1,0 +1,160 @@
+---
+description: 海外仓 OMS/WMS/TMS/YMS/BMS 领域模块、状态机、数据库与 API 规范
+globs: yudao-module-*/**/*.java,sql/**/*,docs/**/*
+alwaysApply: false
+---
+
+# 海外仓领域开发规范
+
+## 业务模块边界
+
+| 模块 | 职责 | 禁止混入 |
+|------|------|----------|
+| OMS | 订单来源、客户订单、主业务单据流 | WMS 库内作业逻辑 |
+| WMS | 仓库作业、库存、库位、入出库、波次、拣货 | OMS 订单创建逻辑 |
+| TMS | 运输、车辆、司机、调度、POD | WMS 库存扣减 |
+| YMS | 堆场、集装箱、提还柜、码头 | TMS 在途管理 |
+| BMS | 费用、账单、结算、对账 | 业务单据状态流转 |
+| BASE | 仓库/客户/渠道/平台等主数据 | 业务单据流程 |
+| NOTICE | 模板、策略、渠道、发送日志 | 业务核心逻辑 |
+| RULE | 规则、条件、动作、表达式 | 硬编码业务分支 |
+
+跨模块协作：事件驱动 / `api` 接口 / Application Service，**禁止**跨模块 Mapper 与跨库直写。
+
+## 新建模块检查清单
+
+1. 根 `pom.xml` + `yudao-server/pom.xml` 注册 module
+2. `package-info.java` 声明 URL 前缀、表前缀、类名前缀
+3. `ErrorCodeConstants` 申请错误码段
+4. `framework/datapermission` 注册数据权限列（`warehouse_id`、`customer_id`、`dept_id`）
+5. 菜单与权限 SQL（`sql/mysql/` 或功能目录下独立 SQL）
+6. 参考实现：
+   - 仓储作业：`yudao-module-mes/.../controller/admin/wm/`
+   - 库存单据：`yudao-module-erp/.../service/stock/`
+
+## 数据库设计
+
+### 每张业务表必须含
+
+| 字段 | 说明 |
+|------|------|
+| `id` | 主键 |
+| `tenant_id` | 多租户（DO 继承 `TenantBaseDO`） |
+| `creator` / `create_time` | 创建审计 |
+| `updater` / `update_time` | 更新审计 |
+| `deleted` | 逻辑删除 |
+
+### 单据/订单表额外必须含
+
+| 字段 | 说明 |
+|------|------|
+| `order_no` / `no` | 业务单号（项目内 ERP 用 `no`） |
+| `status` | 状态（枚举，禁止魔法值） |
+| `remark` | 备注 |
+| `version` | 乐观锁（高并发状态流转时） |
+
+### 多仓/多客户业务表视情况含
+
+`warehouse_id`、`warehouse_code`、`customer_id`、`channel_id`、`platform_id`、`business_type`
+
+### 索引要求
+
+必须分析并建立：`tenant_id`、状态、单号、外键 ID、分页排序字段、时间范围查询字段。
+禁止无索引分页/排序。
+
+### SQL 脚本位置
+
+- 主库：`sql/mysql/ruoyi-vue-pro.sql`
+- 单测：`{module}/src/test/resources/sql/create_tables.sql`
+- 无 Flyway；生产变更维护独立 DDL 或增量 SQL 文件
+
+## 状态机（WMS/OMS 核心）
+
+涉及入库、出库、波次、提柜、调度、预约、派送、财务的单据**必须先设计状态机再编码**。
+
+设计表须含：状态码、状态名、允许操作、前置状态、目标状态、操作角色、是否记日志、是否发通知。
+
+实现参考 ERP `ErpAuditStatus` + `ErpStockInServiceImpl` 的状态校验模式：
+
+```java
+// 禁止：purchaseOrder.setStatus(newStatus) 无校验
+// 正确：校验当前状态 → 校验允许操作 → 更新 → 记日志/发事件
+if (!ErpAuditStatus.APPROVE.getStatus().equals(order.getStatus())) {
+    throw exception(ORDER_NOT_APPROVE);
+}
+```
+
+状态/类型/渠道/平台**必须枚举化**（`XxxStatusEnum`），配合字典展示名称。
+
+## 权限设计
+
+格式：`{module}:{resource}:{action}`，与菜单 `permission` 字段一致。
+
+```
+wms:inbound:create
+wms:inbound:update
+wms:inbound:delete
+wms:inbound:query
+wms:inbound:export
+wms:inbound:submit      # 状态动作独立权限
+wms:inbound:audit
+wms:inbound:cancel
+```
+
+**禁止**用 `edit` 代替 submit/audit/revoke/close/void 等状态操作。
+
+注解：`@PreAuthorize("@ss.hasPermission('wms:inbound:submit')")`
+
+数据权限维度：tenant → company/dept → warehouse → customer → channel → platform。
+
+## API 设计
+
+- 路径：`/wms/inbound/create`、`/oms/order/page` 等
+- 每个接口完整 Swagger 注释（用途、字段含义、状态/枚举值说明）
+- 所有 ReqVO 使用 Jakarta/JSR-303 校验注解，禁止 Controller/Service 手写 if 判空
+
+## Redis 规范
+
+Key 分层命名，必须 TTL：
+
+```
+wms:stock:lock:{warehouseId}:{skuId}
+wms:wave:calc:{waveId}
+system:user:token:{userId}
+```
+
+使用 `starter-protection` 处理幂等、防重复提交、分布式锁。
+考虑：缓存一致性、击穿、雪崩、穿透。
+
+## MQ / 异步
+
+耗时操作（批量通知、API 回调、导出、波次计算）须考虑 MQ/异步任务、重试、失败补偿、超时。
+框架支持 Event / Redis / RabbitMQ / Kafka（`starter-mq`）。
+
+## 并发与事务
+
+- 幂等键、乐观锁（`version`）、分布式锁（库存/单号/状态竞争）
+- 禁止 Controller 开事务、超大/长事务、循环事务
+- MQ 消费须幂等
+
+## 日志与审计
+
+记录：新增、修改、删除、状态流转、审核、分配、API 失败。
+日志含：操作人、租户、仓库、模块、操作类型、变更前/后（可用 `@ApiAccessLog` + 业务日志表）。
+
+## 国际化
+
+禁止硬编码中文到无法替换处；错误码 message、导出表头、状态名预留 i18n 扩展。
+
+## 测试要求（每次开发后）
+
+| 项 | 要求 |
+|----|------|
+| 单元测试 | Service、状态机、规则、工具类 |
+| 接口测试 | 正常/异常/校验/数据权限/多租户/并发 |
+| SQL | 走索引、无慢 SQL、无死锁风险 |
+| 构建 | `mvn clean install` 无编译错误、无循环依赖 |
+
+## 后端代码输出顺序
+
+1. SQL 表结构 → 2. DO → 3. VO → 4. Mapper + XML（若需）→ 5. Convert → 6. Enum → 7. Service/Impl → 8. Controller → 9. 权限码 → 10. 菜单 SQL → 11. 单测

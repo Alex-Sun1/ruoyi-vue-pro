@@ -1,0 +1,74 @@
+---
+description: AI Agent 接力开发、代码审查与禁止事项速查
+alwaysApply: true
+---
+
+# Agent 接力与审查速查
+
+## 接手新项目/功能时先读
+
+1. `docs/{module}/{feature}/agent-progress.md`（若存在）
+2. 对应 `backend-design.md`、`api-contract.md`
+3. 模块 `package-info.java` 与 `ErrorCodeConstants.java`
+4. 同类功能参考：`yudao-module-erp`（单据+库存）、`yudao-module-mes/wm`（仓储作业）
+
+## 写代码前自检（全部满足才动手）
+
+- [ ] 表结构、字段来源、状态机已确认
+- [ ] 权限码、数据权限维度已设计
+- [ ] API 路径与 VO 命名符合项目约定（`SaveReqVO`/`PageReqVO`/`RespVO`）
+- [ ] 多租户（`TenantBaseDO`）与索引已考虑
+- [ ] 跨模块影响已说明（事件/API，非 Mapper 直调）
+- [ ] 并发/幂等/事务边界已明确
+
+## 代码审查红线
+
+| 问题 | 处理 |
+|------|------|
+| Controller 含业务 if/事务 | 下沉 Service |
+| 魔法状态字符串 | 改 Enum + 状态机校验 |
+| 跨模块注入 Mapper | 改 Api/Event |
+| 无 `@PreAuthorize` 的写接口 | 补权限 |
+| 无校验的 ReqVO | 补 `@Valid` + 字段注解 |
+| 循环 `mapper.selectById` | 改批量查询 |
+| `catch (Exception e) {}` | 记录日志 + 抛业务异常 |
+| 用 TODO 代替核心逻辑 | 实现或明确列入待办文档 |
+
+## 性能红线
+
+- N+1 查询、大表无分页、无索引 ORDER BY、`select *`
+- Redis key 无 TTL、把 Redis 当主存储
+- 同步执行大批量导出/通知/波次计算
+
+## 给下一个 Agent 的 progress 模板
+
+```markdown
+## 当前进度
+- 已完成：...
+- 进行中：...
+- 未开始：...
+
+## 修改/新增文件
+| 文件 | 说明 |
+
+## 已知问题 & 风险
+- ...
+
+## 临时方案（勿随意改动）
+- ...
+
+## 下一步建议
+- ...
+
+## 待用户确认
+- ...
+```
+
+## 构建验证命令
+
+```bash
+mvn clean install -pl yudao-module-{name} -am -DskipTests   # 模块编译
+mvn test -pl yudao-module-{name} -am                         # 模块测试
+```
+
+当前 `yudao-server` 默认仅启用 `system` + `infra`；开发其他 module 时须在 `yudao-server/pom.xml` 取消注释对应依赖。
