@@ -23,6 +23,8 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ValidationException;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.util.Assert;
@@ -52,6 +54,7 @@ import static cn.iocoder.yudao.framework.common.exception.enums.GlobalErrorCodeC
  *
  * @author 芋道源码
  */
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice
 @AllArgsConstructor
 @Slf4j

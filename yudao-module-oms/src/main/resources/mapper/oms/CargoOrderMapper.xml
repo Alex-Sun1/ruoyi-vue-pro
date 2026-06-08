@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.oms.dal.mysql.cargoorder.CargoOrderMapper">
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.oms.controller.admin.cargoorder.vo.CargoOrderRespVO">
+        SELECT o.id,
+               o.biz_root_id,
+               o.company_id,
+               o.cargo_order_no,
+               o.shipment_codes,
+               o.po_nos,
+               o.marks,
+               o.external_order_no,
+               o.order_source,
+               o.customer_id,
+               o.customer_name,
+               o.business_type_id,
+               o.business_type_name,
+               o.channel_id,
+               o.channel_name,
+               o.platform_id,
+               o.platform_name,
+               o.customer_service_id,
+               o.customer_service_name,
+               o.container_no,
+               o.inbound_warehouse_id,
+               o.inbound_warehouse_name,
+               o.address_type,
+               o.platform_warehouse_code,
+               o.consignee_name,
+               o.city,
+               o.state,
+               o.zip_code,
+               o.country,
+               o.parcel_carrier_name,
+               o.parcel_tracking_no,
+               o.transfer_flag,
+               o.transfer_warehouse_code,
+               o.forecast_qty_unit,
+               o.declared_carton_qty,
+               o.declared_pallet_qty,
+               o.declared_weight,
+               o.declared_cbm,
+               o.actual_carton_qty,
+               o.actual_pallet_qty,
+               o.actual_weight,
+               o.actual_cbm,
+               o.pre_outbound_flag,
+               o.pre_outbound_no,
+               o.pre_outbound_status,
+               o.outbound_batch_no,
+               o.outbound_order_status,
+               o.outbound_order_time,
+               o.hold_flag,
+               o.hold_status,
+               o.hold_type,
+               o.hold_reason,
+               o.hold_time,
+               o.hold_user_id,
+               o.hold_user_name,
+               o.release_time,
+               o.order_status,
+               COALESCE(br.current_node, o.fulfillment_status) AS fulfillment_status,
+               o.appointment_status,
+               o.pod_status,
+               o.billing_status,
+               o.attachment_count,
+               o.pod_attachment_count,
+               o.exception_attachment_count,
+               o.latest_attachment_time,
+               o.parent_order_id,
+               o.parent_order_no,
+               o.root_order_id,
+               o.root_order_no,
+               o.split_flag,
+               o.split_role,
+               o.split_status,
+               o.split_group_no,
+               o.child_order_count,
+               o.split_source,
+               o.customer_visible_flag,
+               o.earliest_dw_time,
+               o.eta,
+               o.ata,
+               o.actual_arrival_time,
+               o.actual_inbound_time,
+               o.delivery_appointment_time,
+               o.actual_outbound_time,
+               o.signed_time,
+               o.exception_flag,
+               o.exception_count,
+               o.group_code,
+               o.create_time
+        FROM oms_cargo_order o
+        LEFT JOIN biz_root br ON br.id = o.biz_root_id AND br.deleted = 0
+        WHERE o.deleted = 0
+        <if test="bo.keyword != null and bo.keyword != ''">
+            <choose>
+                <when test="bo.keywordField == 'cargoOrderNo'">
+                    AND o.cargo_order_no LIKE CONCAT('%', #{bo.keyword}, '%')
+                </when>
+                <when test="bo.keywordField == 'mark'">
+                    AND (o.marks LIKE CONCAT('%', #{bo.keyword}, '%')
+                        OR EXISTS (
+                            SELECT 1 FROM oms_cargo_order_shipment s
+                            WHERE s.cargo_order_id = o.id AND s.deleted = 0
+                              AND s.shipping_mark LIKE CONCAT('%', #{bo.keyword}, '%')
+                        ))
+                </when>
+                <when test="bo.keywordField == 'shipmentCode'">
+                    AND (o.shipment_codes LIKE CONCAT('%', #{bo.keyword}, '%')
+                        OR EXISTS (
+                            SELECT 1 FROM oms_cargo_order_shipment s
+                            WHERE s.cargo_order_id = o.id AND s.deleted = 0
+                              AND s.shipment_no LIKE CONCAT('%', #{bo.keyword}, '%')
+                        ))
+                </when>
+                <when test="bo.keywordField == 'poNo'">
+                    AND (o.po_nos LIKE CONCAT('%', #{bo.keyword}, '%')
+                        OR EXISTS (
+                            SELECT 1 FROM oms_cargo_order_shipment s
+                            WHERE s.cargo_order_id = o.id AND s.deleted = 0
+                              AND s.po_no LIKE CONCAT('%', #{bo.keyword}, '%')
+                        ))
+                </when>
+                <when test="bo.keywordField == 'externalOrderNo'">
+                    AND o.external_order_no LIKE CONCAT('%', #{bo.keyword}, '%')
+                </when>
+                <otherwise>
+                    AND (o.cargo_order_no LIKE CONCAT('%', #{bo.keyword}, '%')
+                        OR o.external_order_no LIKE CONCAT('%', #{bo.keyword}, '%')
+                        OR o.marks LIKE CONCAT('%', #{bo.keyword}, '%')
+                        OR o.shipment_codes LIKE CONCAT('%', #{bo.keyword}, '%')
+                        OR o.po_nos LIKE CONCAT('%', #{bo.keyword}, '%')
+                        OR o.container_no LIKE CONCAT('%', #{bo.keyword}, '%'))
+                </otherwise>
+            </choose>
+        </if>
+        <if test="bo.cargoOrderNo != null and bo.cargoOrderNo != ''">
+            AND o.cargo_order_no LIKE CONCAT('%', #{bo.cargoOrderNo}, '%')
+        </if>
+        <if test="bo.externalOrderNo != null and bo.externalOrderNo != ''">
+            AND o.external_order_no LIKE CONCAT('%', #{bo.externalOrderNo}, '%')
+        </if>
+        <if test="bo.customerId != null">
+            AND o.customer_id = #{bo.customerId}
+        </if>
+        <if test="bo.customerName != null and bo.customerName != ''">
+            AND o.customer_name LIKE CONCAT('%', #{bo.customerName}, '%')
+        </if>
+        <if test="bo.consigneeName != null and bo.consigneeName != ''">
+            AND o.consignee_name LIKE CONCAT('%', #{bo.consigneeName}, '%')
+        </if>
+        <if test="bo.businessTypeIdList != null and bo.businessTypeIdList.size() > 0">
+            AND o.business_type_id IN
+            <foreach collection="bo.businessTypeIdList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.channelIdList != null and bo.channelIdList.size() > 0">
+            AND o.channel_id IN
+            <foreach collection="bo.channelIdList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.platformIdList != null and bo.platformIdList.size() > 0">
+            AND o.platform_id IN
+            <foreach collection="bo.platformIdList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.customerServiceIdList != null and bo.customerServiceIdList.size() > 0">
+            AND o.customer_service_id IN
+            <foreach collection="bo.customerServiceIdList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.inboundWarehouseIdList != null and bo.inboundWarehouseIdList.size() > 0">
+            AND o.inbound_warehouse_id IN
+            <foreach collection="bo.inboundWarehouseIdList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.orderSourceList != null and bo.orderSourceList.size() > 0">
+            AND o.order_source IN
+            <foreach collection="bo.orderSourceList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.addressTypeList != null and bo.addressTypeList.size() > 0">
+            AND o.address_type IN
+            <foreach collection="bo.addressTypeList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.platformWarehouseCode != null and bo.platformWarehouseCode != ''">
+            AND o.platform_warehouse_code LIKE CONCAT('%', #{bo.platformWarehouseCode}, '%')
+        </if>
+        <if test="bo.groupCode != null and bo.groupCode != ''">
+            AND o.group_code LIKE CONCAT('%', #{bo.groupCode}, '%')
+        </if>
+        <if test="bo.city != null and bo.city != ''">
+            AND o.city LIKE CONCAT('%', #{bo.city}, '%')
+        </if>
+        <if test="bo.state != null and bo.state != ''">
+            AND o.state = #{bo.state}
+        </if>
+        <if test="bo.zipCode != null and bo.zipCode != ''">
+            AND o.zip_code LIKE CONCAT('%', #{bo.zipCode}, '%')
+        </if>
+        <if test="bo.containerNo != null and bo.containerNo != ''">
+            AND o.container_no LIKE CONCAT('%', #{bo.containerNo}, '%')
+        </if>
+        <if test="bo.fulfillmentStatusList != null and bo.fulfillmentStatusList.size() > 0">
+            AND COALESCE(br.current_node, o.fulfillment_status) IN
+            <foreach collection="bo.fulfillmentStatusList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.billingStatusList != null and bo.billingStatusList.size() > 0">
+            AND o.billing_status IN
+            <foreach collection="bo.billingStatusList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.preOutboundStatusList != null and bo.preOutboundStatusList.size() > 0">
+            AND o.pre_outbound_status IN
+            <foreach collection="bo.preOutboundStatusList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.outboundOrderStatusList != null and bo.outboundOrderStatusList.size() > 0">
+            AND o.outbound_order_status IN
+            <foreach collection="bo.outboundOrderStatusList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.podStatusList != null and bo.podStatusList.size() > 0">
+            AND o.pod_status IN
+            <foreach collection="bo.podStatusList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.exceptionFlagList != null and bo.exceptionFlagList.size() > 0">
+            AND o.exception_flag IN
+            <foreach collection="bo.exceptionFlagList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.transferFlagList != null and bo.transferFlagList.size() > 0">
+            AND o.transfer_flag IN
+            <foreach collection="bo.transferFlagList" item="item" open="(" separator="," close=")">#{item}</foreach>
+        </if>
+        <if test="bo.outboundBatchNo != null and bo.outboundBatchNo != ''">
+            AND o.outbound_batch_no LIKE CONCAT('%', #{bo.outboundBatchNo}, '%')
+        </if>
+        <if test="bo.beginEarliestDwTime != null">AND o.earliest_dw_time &gt;= #{bo.beginEarliestDwTime}</if>
+        <if test="bo.endEarliestDwTime != null">AND o.earliest_dw_time &lt;= #{bo.endEarliestDwTime}</if>
+        <if test="bo.beginEta != null">AND o.eta &gt;= #{bo.beginEta}</if>
+        <if test="bo.endEta != null">AND o.eta &lt;= #{bo.endEta}</if>
+        <if test="bo.beginAta != null">AND o.ata &gt;= #{bo.beginAta}</if>
+        <if test="bo.endAta != null">AND o.ata &lt;= #{bo.endAta}</if>
+        <if test="bo.beginActualArrivalTime != null">AND o.actual_arrival_time &gt;= #{bo.beginActualArrivalTime}</if>
+        <if test="bo.endActualArrivalTime != null">AND o.actual_arrival_time &lt;= #{bo.endActualArrivalTime}</if>
+        <if test="bo.beginActualInboundTime != null">AND o.actual_inbound_time &gt;= #{bo.beginActualInboundTime}</if>
+        <if test="bo.endActualInboundTime != null">AND o.actual_inbound_time &lt;= #{bo.endActualInboundTime}</if>
+        <if test="bo.beginDeliveryAppointmentTime != null">AND o.delivery_appointment_time &gt;= #{bo.beginDeliveryAppointmentTime}</if>
+        <if test="bo.endDeliveryAppointmentTime != null">AND o.delivery_appointment_time &lt;= #{bo.endDeliveryAppointmentTime}</if>
+        <if test="bo.beginActualOutboundTime != null">AND o.actual_outbound_time &gt;= #{bo.beginActualOutboundTime}</if>
+        <if test="bo.endActualOutboundTime != null">AND o.actual_outbound_time &lt;= #{bo.endActualOutboundTime}</if>
+        <if test="bo.beginSignedTime != null">AND o.signed_time &gt;= #{bo.beginSignedTime}</if>
+        <if test="bo.endSignedTime != null">AND o.signed_time &lt;= #{bo.endSignedTime}</if>
+        <if test="bo.beginCreateTime != null">AND o.create_time &gt;= #{bo.beginCreateTime}</if>
+        <if test="bo.endCreateTime != null">AND o.create_time &lt;= #{bo.endCreateTime}</if>
+        ORDER BY o.create_time DESC
+    </select>
+
+    <select id="selectStatusCount" resultType="java.util.Map">
+        SELECT COALESCE(br.current_node, o.fulfillment_status) AS status_key, COUNT(*) AS status_count
+        FROM oms_cargo_order o
+        LEFT JOIN biz_root br ON br.id = o.biz_root_id AND br.deleted = 0
+        WHERE o.deleted = 0
+          AND COALESCE(br.current_node, o.fulfillment_status) IS NOT NULL
+          AND COALESCE(br.current_node, o.fulfillment_status) != ''
+        <if test="bo.customerId != null">
+            AND o.customer_id = #{bo.customerId}
+        </if>
+        <if test="bo.inboundWarehouseId != null">
+            AND o.inbound_warehouse_id = #{bo.inboundWarehouseId}
+        </if>
+        GROUP BY COALESCE(br.current_node, o.fulfillment_status)
+    </select>
+
+</mapper>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsExceptionMapper">
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsExceptionRespVO">
+        SELECT * FROM (
+            SELECT
+                'CHECK_IN' AS source_type,
+                c.id AS ref_id,
+                CASE WHEN c.check_result = 'BLACKLISTED' THEN 'BLACKLISTED' ELSE 'CHECK_IN_REJECT' END AS exception_type,
+                COALESCE(c.plate_no, c.container_no, c.trailer_no, c.yard_task_no) AS object_label,
+                COALESCE(c.reject_reason, c.check_result) AS message,
+                'OPEN' AS status,
+                c.warehouse_id AS warehouse_id,
+                c.check_in_time AS create_time
+            FROM yms_check_in c
+            WHERE c.deleted = 0
+              AND c.check_result IN ('REJECTED', 'BLACKLISTED')
+
+            UNION ALL
+
+            SELECT
+                'TASK' AS source_type,
+                t.id AS ref_id,
+                'TASK_EXCEPTION' AS exception_type,
+                COALESCE(t.yard_task_no, t.container_no, t.truck_no) AS object_label,
+                COALESCE(t.exception_reason, '任务异常') AS message,
+                CASE WHEN t.yard_status = 'EXCEPTION_PROCESSING' THEN 'PROCESSING' ELSE 'OPEN' END AS status,
+                t.warehouse_id AS warehouse_id,
+                t.create_time AS create_time
+            FROM yms_yard_task t
+            WHERE t.deleted = 0
+              AND (t.exception_flag = 1 OR t.yard_status = 'EXCEPTION_PROCESSING')
+              AND t.yard_status != 'EXCEPTION_CLOSED'
+
+            UNION ALL
+
+            SELECT
+                'CONTAINER' AS source_type,
+                c.id AS ref_id,
+                'RESOURCE_EXCEPTION' AS exception_type,
+                c.container_no AS object_label,
+                COALESCE(c.exception_reason, '海柜资源异常') AS message,
+                'OPEN' AS status,
+                c.warehouse_id AS warehouse_id,
+                c.update_time AS create_time
+            FROM yms_container_resource c
+            WHERE c.deleted = 0
+              AND (c.container_status = 'EXCEPTION' OR c.exception_flag = 1)
+
+            UNION ALL
+
+            SELECT
+                'TRAILER' AS source_type,
+                t.id AS ref_id,
+                'RESOURCE_EXCEPTION' AS exception_type,
+                COALESCE(t.trailer_no, t.plate_no) AS object_label,
+                COALESCE(t.exception_reason, '车厢资源异常') AS message,
+                'OPEN' AS status,
+                t.warehouse_id AS warehouse_id,
+                t.update_time AS create_time
+            FROM yms_trailer_resource t
+            WHERE t.deleted = 0
+              AND (t.trailer_status = 'EXCEPTION' OR t.exception_flag = 1)
+        ) ex
+        WHERE 1 = 1
+          <if test="bo.warehouseId != null">
+              AND ex.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.sourceType != null and bo.sourceType != ''">
+              AND ex.source_type = #{bo.sourceType}
+          </if>
+          <if test="bo.exceptionType != null and bo.exceptionType != ''">
+              AND ex.exception_type = #{bo.exceptionType}
+          </if>
+          <if test="bo.status != null and bo.status != ''">
+              AND ex.status = #{bo.status}
+          </if>
+          <if test="bo.keyword != null and bo.keyword != ''">
+              AND (
+                  ex.object_label LIKE CONCAT('%', #{bo.keyword}, '%')
+                  OR ex.message LIKE CONCAT('%', #{bo.keyword}, '%')
+              )
+          </if>
+        ORDER BY ex.create_time DESC
+    </select>
+
+</mapper>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.oms.dal.mysql.cargoorder.CargoOrderNodeTraceMapper">
+
+    <select id="selectByCargoOrderId" resultType="cn.iocoder.yudao.module.oms.controller.admin.cargoorder.vo.CargoOrderNodeTraceRespVO">
+        SELECT id, cargo_order_id, biz_root_id, node_code, node_name, node_status,
+               status_from, status_to, action, actual_time, source_type, source_order_no,
+               operator_id, operator_name, remark, create_time
+        FROM oms_cargo_order_node_trace
+        WHERE cargo_order_id = #{cargoOrderId}
+        ORDER BY create_time DESC
+    </select>
+
+</mapper>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsYardInventoryItemMapper">
+
+    <select id="selectListByInventoryId" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsYardInventoryItemRespVO">
+        SELECT
+            i.id, i.inventory_id, i.object_type, i.object_no,
+            i.system_position_id, i.system_position_code,
+            i.actual_position_id, i.actual_position_code,
+            i.scan_status, i.diff_type, i.photo_urls, i.remark,
+            i.scan_time, i.create_time
+        FROM yms_yard_inventory_item i
+        WHERE i.inventory_id = #{inventoryId}
+        ORDER BY i.scan_status ASC, i.object_no ASC
+    </select>
+
+</mapper>

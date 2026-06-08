@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.oms.dal.mysql.cargoorder.CargoOrderSkuItemMapper">
+
+    <select id="selectByCargoOrderId" resultType="cn.iocoder.yudao.module.oms.controller.admin.cargoorder.vo.CargoOrderSkuItemRespVO">
+        SELECT id, cargo_order_id, shipment_id, shipment_no, po_no, shipping_mark,
+               sku, fnsku, product_name, qty, carton_qty, weight, cbm, remark, create_time
+        FROM oms_cargo_order_sku_item
+        WHERE cargo_order_id = #{cargoOrderId}
+          AND deleted = 0
+        ORDER BY shipment_id, id ASC
+    </select>
+
+    <select id="selectByShipmentId" resultType="cn.iocoder.yudao.module.oms.controller.admin.cargoorder.vo.CargoOrderSkuItemRespVO">
+        SELECT id, cargo_order_id, shipment_id, shipment_no, po_no, shipping_mark,
+               sku, fnsku, product_name, qty, carton_qty, weight, cbm, remark, create_time
+        FROM oms_cargo_order_sku_item
+        WHERE shipment_id = #{shipmentId}
+          AND deleted = 0
+        ORDER BY id ASC
+    </select>
+
+</mapper>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsYardInventoryTaskMapper">
+
+    <sql id="selectColumns">
+        t.id, t.warehouse_id, t.inventory_no, t.inventory_type,
+        t.zone_id, t.zone_code,
+        t.expected_count, t.actual_count, t.diff_count, t.status,
+        t.start_time, t.finish_time, t.operator_id, t.operator_name,
+        t.remark, t.create_time,
+        z.zone_name
+    </sql>
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsYardInventoryTaskRespVO">
+        SELECT <include refid="selectColumns"/>
+        FROM yms_yard_inventory_task t
+        LEFT JOIN yard_zone z ON t.zone_id = z.id AND z.deleted = 0
+        WHERE t.deleted = 0
+          <if test="bo.warehouseId != null">
+              AND t.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.inventoryNo != null and bo.inventoryNo != ''">
+              AND t.inventory_no LIKE CONCAT('%', #{bo.inventoryNo}, '%')
+          </if>
+          <if test="bo.inventoryType != null and bo.inventoryType != ''">
+              AND t.inventory_type = #{bo.inventoryType}
+          </if>
+          <if test="bo.status != null and bo.status != ''">
+              AND t.status = #{bo.status}
+          </if>
+          <if test="bo.zoneId != null">
+              AND t.zone_id = #{bo.zoneId}
+          </if>
+        ORDER BY t.create_time DESC
+    </select>
+
+    <select id="selectDetailById" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsYardInventoryTaskRespVO">
+        SELECT <include refid="selectColumns"/>
+        FROM yms_yard_inventory_task t
+        LEFT JOIN yard_zone z ON t.zone_id = z.id AND z.deleted = 0
+        WHERE t.deleted = 0 AND t.id = #{id}
+    </select>
+
+</mapper>

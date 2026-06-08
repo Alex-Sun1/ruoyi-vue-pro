@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsInternalTaskMapper">
+
+    <sql id="selectColumns">
+        t.id, t.tenant_id, t.warehouse_id, t.task_no,
+        t.parent_yard_task_id, t.parent_yard_task_no,
+        t.internal_task_type, t.object_type, t.object_id, t.object_no,
+        t.from_position_id, t.from_position_code,
+        t.to_position_id, t.to_position_code,
+        t.to_dock_id, t.to_dock_code,
+        t.executor_type, t.executor_id, t.executor_name,
+        t.task_status, t.priority,
+        t.assign_time, t.accept_time, t.start_time, t.finish_time, t.deadline_time,
+        t.fail_reason, t.photo_urls, t.remark, t.create_time
+    </sql>
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsInternalTaskRespVO">
+        SELECT <include refid="selectColumns"/>
+        FROM yms_internal_task t
+        WHERE t.deleted = 0
+          <if test="bo.warehouseId != null">
+              AND t.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.internalTaskType != null and bo.internalTaskType != ''">
+              AND t.internal_task_type = #{bo.internalTaskType}
+          </if>
+          <if test="bo.taskStatus != null and bo.taskStatus != ''">
+              AND t.task_status = #{bo.taskStatus}
+          </if>
+          <if test="bo.objectNo != null and bo.objectNo != ''">
+              AND t.object_no LIKE CONCAT('%', #{bo.objectNo}, '%')
+          </if>
+          <if test="bo.executorName != null and bo.executorName != ''">
+              AND t.executor_name LIKE CONCAT('%', #{bo.executorName}, '%')
+          </if>
+          <if test="bo.parentYardTaskId != null">
+              AND t.parent_yard_task_id = #{bo.parentYardTaskId}
+          </if>
+        ORDER BY t.priority ASC, t.create_time DESC
+    </select>
+
+    <select id="selectBoardList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsInternalTaskRespVO">
+        SELECT <include refid="selectColumns"/>
+        FROM yms_internal_task t
+        WHERE t.deleted = 0
+          AND t.task_status NOT IN ('COMPLETED', 'CANCELLED')
+          <if test="warehouseId != null">
+              AND t.warehouse_id = #{warehouseId}
+          </if>
+          <if test="internalTaskType != null and internalTaskType != ''">
+              AND t.internal_task_type = #{internalTaskType}
+          </if>
+        ORDER BY t.priority ASC, t.create_time ASC
+    </select>
+
+</mapper>

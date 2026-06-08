@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsTrailerResourceMapper">
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsTrailerResourceRespVO">
+        SELECT
+            t.id, t.company_id, t.warehouse_id,
+            t.trailer_no, t.tractor_no, t.plate_no,
+            t.driver_name, t.driver_phone,
+            t.vehicle_source, t.supplier_id, t.supplier_name,
+            t.related_loading_task_id, t.related_order_no, t.biz_root_id,
+            t.trailer_status,
+            t.yard_position_id, t.yard_zone_id, t.dock_id, t.dock_code,
+            t.arrive_time, t.loading_start_time, t.loading_finish_time, t.leave_time,
+            t.wms_ready_status, t.wms_ready_time,
+            t.exception_flag, t.exception_reason, t.remark, t.create_time,
+            p.dock_code AS position_code,
+            z.zone_code, z.zone_name
+        FROM yms_trailer_resource t
+        LEFT JOIN yard_dock p ON t.yard_position_id = p.id AND p.deleted = 0
+        LEFT JOIN yard_zone z ON t.yard_zone_id = z.id AND z.deleted = 0
+        WHERE t.deleted = 0
+          <if test="bo.warehouseId != null">
+              AND t.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.companyId != null">
+              AND t.company_id = #{bo.companyId}
+          </if>
+          <if test="bo.trailerNo != null and bo.trailerNo != ''">
+              AND t.trailer_no LIKE CONCAT('%', #{bo.trailerNo}, '%')
+          </if>
+          <if test="bo.plateNo != null and bo.plateNo != ''">
+              AND t.plate_no LIKE CONCAT('%', #{bo.plateNo}, '%')
+          </if>
+          <if test="bo.vehicleSource != null and bo.vehicleSource != ''">
+              AND t.vehicle_source = #{bo.vehicleSource}
+          </if>
+          <if test="bo.trailerStatus != null and bo.trailerStatus != ''">
+              AND t.trailer_status = #{bo.trailerStatus}
+          </if>
+          <if test="bo.wmsReadyStatus != null and bo.wmsReadyStatus != ''">
+              AND t.wms_ready_status = #{bo.wmsReadyStatus}
+          </if>
+        ORDER BY t.arrive_time DESC, t.create_time DESC
+    </select>
+
+</mapper>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.oms.dal.mysql.cargoorder.CargoOrderShipmentMapper">
+
+    <select id="selectMinDwTime" resultType="java.util.Date">
+        SELECT MIN(dw_time)
+        FROM oms_cargo_order_shipment
+        WHERE cargo_order_id = #{cargoOrderId}
+          AND deleted = 0
+          AND dw_time IS NOT NULL
+    </select>
+
+    <select id="selectByCargoOrderId" resultType="cn.iocoder.yudao.module.oms.controller.admin.cargoorder.vo.CargoOrderShipmentRespVO">
+        SELECT id, cargo_order_id, biz_root_id, shipment_no, po_no, shipping_mark,
+               carton_qty, pallet_qty, weight, cbm, dw_time, group_code, remark, create_time
+        FROM oms_cargo_order_shipment
+        WHERE cargo_order_id = #{cargoOrderId}
+          AND deleted = 0
+        ORDER BY create_time ASC
+    </select>
+
+
+    <select id="selectShipmentsByContainerOrderId" resultType="cn.iocoder.yudao.module.oms.dal.dataobject.cargoorder.CargoOrderShipmentDO">
+        SELECT s.*
+        FROM oms_cargo_order_shipment s
+        INNER JOIN oms_cargo_order o ON o.id = s.cargo_order_id AND o.deleted = 0
+        INNER JOIN (
+            SELECT cargo_order_id
+            FROM oms_cargo_order
+            WHERE container_order_id = #{containerOrderId}
+              AND deleted = 0
+            UNION
+            SELECT cargo_order_id
+            FROM oms_container_cargo_order_rel
+            WHERE container_order_id = #{containerOrderId}
+              AND deleted = 0
+        ) rel ON rel.cargo_order_id = o.id
+        WHERE s.deleted = 0
+    </select>
+
+</mapper>

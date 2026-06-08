@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.oms.dal.mysql.inboundplan.InboundPlanItemMapper">
+
+    <!-- 查询计划明细（JOIN 原表，展示数据实时读取） -->
+    <select id="selectItemsByPlanId" resultType="cn.iocoder.yudao.module.oms.controller.admin.inboundplan.vo.InboundPlanItemRespVO">
+        SELECT
+            i.id,
+            i.plan_id,
+            i.cargo_order_id,
+            i.shipment_id,
+            i.group_code,
+            i.pre_location,
+            -- JOIN oms_cargo_order
+            o.cargo_order_no,
+            o.business_type_name,
+            o.platform_name,
+            o.address_type,
+            o.order_status,
+            o.platform_warehouse_code,
+            -- JOIN oms_cargo_order_shipment
+            s.shipment_no,
+            s.po_no,
+            s.shipping_mark,
+            s.carton_qty,
+            s.weight,
+            s.cbm,
+            s.pallet_qty
+        FROM wms_inbound_plan_item i
+        LEFT JOIN oms_cargo_order o
+               ON o.id = i.cargo_order_id AND o.deleted = 0
+        LEFT JOIN oms_cargo_order_shipment s
+               ON s.id = i.shipment_id AND s.deleted = 0
+        WHERE i.plan_id = #{planId}
+          AND i.deleted = 0
+        ORDER BY i.group_code, i.id
+    </select>
+
+    <!-- 分组聚合统计（折叠行：CBM/箱数/重量/件数） -->
+    <select id="selectGroupSummaryByPlanId" resultType="cn.iocoder.yudao.module.oms.controller.admin.inboundplan.vo.InboundPlanGroupRespVO">
+        SELECT
+            i.group_code,
+            SUM(s.cbm)        AS total_cbm,
+            SUM(s.carton_qty) AS total_carton_qty,
+            SUM(s.weight)     AS total_weight,
+            COUNT(i.id)       AS item_count
+        FROM wms_inbound_plan_item i
+        LEFT JOIN oms_cargo_order_shipment s
+               ON s.id = i.shipment_id AND s.deleted = 0
+        WHERE i.plan_id = #{planId}
+          AND i.deleted = 0
+        GROUP BY i.group_code
+        ORDER BY i.group_code
+    </select>
+
+</mapper>

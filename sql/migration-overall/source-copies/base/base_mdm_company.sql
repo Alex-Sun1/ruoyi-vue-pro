@@ -1,0 +1,35 @@
+-- ----------------------------
+-- SYS-002 主体管理
+-- ----------------------------
+CREATE TABLE `mdm_company` (
+  `id`                 bigint         NOT NULL                   COMMENT '主键（雪花ID）',
+  `tenant_id`          varchar(20)    NOT NULL                   COMMENT '租户ID',
+  `company_code`       varchar(50)    NOT NULL                   COMMENT '主体编码（租户内唯一，新增后不可修改）',
+  `company_name`       varchar(100)   NOT NULL                   COMMENT '主体名称',
+  `country_code`       varchar(10)    NOT NULL                   COMMENT '国家代码（ISO 3166-1 alpha-2）',
+  `registered_addr`    varchar(255)   DEFAULT NULL               COMMENT '注册地址',
+  `tax_no`             varchar(100)   DEFAULT NULL               COMMENT '税号（EIN/注册号）',
+  `vat_registered`     tinyint        NOT NULL DEFAULT 0         COMMENT '是否VAT注册（0=否，1=是）',
+  `invoice_title`      varchar(200)   DEFAULT NULL               COMMENT '开票抬头',
+  `invoice_tax_no`     varchar(100)   DEFAULT NULL               COMMENT '开票税号',
+  `invoice_bank_name`  varchar(100)   DEFAULT NULL               COMMENT '开票银行',
+  `bank_account_masked`varchar(100)   DEFAULT NULL               COMMENT '银行账号（脱敏展示）',
+  `bank_name`          varchar(100)   DEFAULT NULL               COMMENT '银行名称',
+  `bank_account_no`    varchar(255)   DEFAULT NULL               COMMENT '银行账号（加密存储）',
+  `swift_code`         varchar(50)    DEFAULT NULL               COMMENT 'SWIFT/BIC代码',
+  `beneficiary`        varchar(100)   DEFAULT NULL               COMMENT '收款人',
+  `currency_code`      varchar(10)    NOT NULL DEFAULT 'USD'     COMMENT '结算货币代码',
+  `timezone`           varchar(50)    NOT NULL DEFAULT 'UTC'     COMMENT '时区（IANA标准）',
+  `license_files`      json           DEFAULT NULL               COMMENT '营业执照等附件（JSON数组，存OSS URL）',
+  `status`             char(1)        NOT NULL DEFAULT '0'       COMMENT '状态（0=启用，1=停用）',
+  `remark`             varchar(255)   DEFAULT NULL               COMMENT '备注',
+  `create_dept`     bigint         DEFAULT NULL                 COMMENT '创建部门',
+  `create_by`          bigint         DEFAULT NULL               COMMENT '创建者',
+  `create_time`        datetime       DEFAULT NULL               COMMENT '创建时间',
+  `update_by`          bigint         DEFAULT NULL               COMMENT '更新者',
+  `update_time`        datetime       DEFAULT NULL               COMMENT '更新时间',
+  `del_flag`           bigint         DEFAULT 0                  COMMENT '逻辑删除（0=存在，1=删除）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_tenant_company_code` (`tenant_id`, `company_code`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='主体管理';

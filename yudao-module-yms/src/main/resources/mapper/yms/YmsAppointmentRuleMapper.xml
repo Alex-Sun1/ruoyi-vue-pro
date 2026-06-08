@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsAppointmentRuleMapper">
+
+    <sql id="selectRuleColumns">
+        r.id, r.rule_name, r.warehouse_id, r.business_type, r.vehicle_source,
+        r.dock_type, r.customer_level, r.advance_days_min, r.advance_days_max,
+        r.cancel_deadline_minutes, r.late_grace_minutes, r.no_show_minutes,
+        r.auto_confirm, r.holiday_flag, r.enabled, r.sort_order, r.remark, r.create_time
+    </sql>
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsAppointmentRuleRespVO">
+        SELECT <include refid="selectRuleColumns"/>
+        FROM yms_appointment_rule r
+        WHERE r.deleted = 0
+          <if test="bo.ruleName != null and bo.ruleName != ''">
+              AND r.rule_name LIKE CONCAT('%', #{bo.ruleName}, '%')
+          </if>
+          <if test="bo.warehouseId != null">
+              AND r.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.businessType != null and bo.businessType != ''">
+              AND (r.business_type = #{bo.businessType} OR r.business_type IS NULL)
+          </if>
+          <if test="bo.vehicleSource != null and bo.vehicleSource != ''">
+              AND (r.vehicle_source = #{bo.vehicleSource} OR r.vehicle_source IS NULL)
+          </if>
+          <if test="bo.enabled != null">
+              AND r.enabled = #{bo.enabled}
+          </if>
+        ORDER BY r.sort_order ASC, r.create_time DESC
+    </select>
+
+    <select id="selectVoDetailById" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsAppointmentRuleRespVO">
+        SELECT <include refid="selectRuleColumns"/>
+        FROM yms_appointment_rule r
+        WHERE r.deleted = 0 AND r.id = #{id}
+    </select>
+
+    <select id="selectMatchRule" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsAppointmentRuleRespVO">
+        SELECT <include refid="selectRuleColumns"/>
+        FROM yms_appointment_rule r
+        WHERE r.deleted = 0 AND r.enabled = 1
+          AND r.warehouse_id = #{warehouseId}
+          AND (r.business_type IS NULL OR r.business_type = #{businessType})
+          AND (r.vehicle_source IS NULL OR r.vehicle_source = #{vehicleSource}
+               OR #{vehicleSource} IS NULL OR #{vehicleSource} = '')
+        ORDER BY r.sort_order ASC, r.create_time ASC
+        LIMIT 1
+    </select>
+
+</mapper>

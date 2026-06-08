@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsYardgoTaskMapper">
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsYardgoTaskRespVO">
+        SELECT yg.id, yg.yard_task_id, yg.warehouse_id, yg.dock_id, yg.dock_code,
+               yg.robot_task_id, yg.robot_status, yg.task_type, yg.progress,
+               yg.start_time, yg.finish_time, yg.remark, yg.create_time
+        FROM yms_yardgo_task yg
+        WHERE yg.deleted = 0
+          <if test="bo.warehouseId != null">
+              AND yg.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.yardTaskId != null">
+              AND yg.yard_task_id = #{bo.yardTaskId}
+          </if>
+          <if test="bo.dockId != null">
+              AND yg.dock_id = #{bo.dockId}
+          </if>
+          <if test="bo.robotStatus != null and bo.robotStatus != ''">
+              AND yg.robot_status = #{bo.robotStatus}
+          </if>
+          <if test="bo.taskType != null and bo.taskType != ''">
+              AND yg.task_type = #{bo.taskType}
+          </if>
+        ORDER BY yg.create_time DESC
+    </select>
+
+</mapper>

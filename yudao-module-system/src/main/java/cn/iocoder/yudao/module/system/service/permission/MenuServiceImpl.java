@@ -3,6 +3,7 @@ package cn.iocoder.yudao.module.system.service.permission;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.extra.spring.SpringUtil;
 import cn.iocoder.yudao.framework.common.enums.CommonStatusEnum;
 import cn.iocoder.yudao.framework.common.util.object.BeanUtils;
 import cn.iocoder.yudao.module.system.controller.admin.permission.vo.menu.MenuListReqVO;
@@ -48,8 +49,7 @@ public class MenuServiceImpl implements MenuService {
     private TenantService tenantService;
 
     @Override
-    @CacheEvict(value = RedisKeyConstants.PERMISSION_MENU_ID_LIST, key = "#createReqVO.permission",
-            condition = "#createReqVO.permission != null")
+    @CacheEvict(value = RedisKeyConstants.PERMISSION_MENU_ID_LIST, key = "#createReqVO.permission", condition = "#createReqVO.permission != null")
     public Long createMenu(MenuSaveVO createReqVO) {
         // 校验父菜单存在
         validateParentMenu(createReqVO.getParentId(), null);
@@ -66,8 +66,9 @@ public class MenuServiceImpl implements MenuService {
     }
 
     @Override
-    @CacheEvict(value = RedisKeyConstants.PERMISSION_MENU_ID_LIST,
-            allEntries = true) // allEntries 清空所有缓存，因为 permission 如果变更，涉及到新老两个 permission。直接清理，简单有效
+    @CacheEvict(value = RedisKeyConstants.PERMISSION_MENU_ID_LIST, allEntries = true) // allEntries 清空所有缓存，因为 permission
+                                                                                      // 如果变更，涉及到新老两个
+                                                                                      // permission。直接清理，简单有效
     public void updateMenu(MenuSaveVO updateReqVO) {
         // 校验更新的菜单是否存在
         if (menuMapper.selectById(updateReqVO.getId()) == null) {
@@ -87,8 +88,8 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = RedisKeyConstants.PERMISSION_MENU_ID_LIST,
-            allEntries = true) // allEntries 清空所有缓存，因为此时不知道 id 对应的 permission 是多少。直接清理，简单有效
+    @CacheEvict(value = RedisKeyConstants.PERMISSION_MENU_ID_LIST, allEntries = true) // allEntries 清空所有缓存，因为此时不知道 id
+                                                                                      // 对应的 permission 是多少。直接清理，简单有效
     public void deleteMenu(Long id) {
         // 校验是否还有子菜单
         if (menuMapper.selectCountByParentId(id) > 0) {
@@ -106,8 +107,8 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @CacheEvict(value = RedisKeyConstants.PERMISSION_MENU_ID_LIST,
-            allEntries = true) // allEntries 清空所有缓存，因为 Spring Cache 不支持按照 ids 批量删除
+    @CacheEvict(value = RedisKeyConstants.PERMISSION_MENU_ID_LIST, allEntries = true) // allEntries 清空所有缓存，因为 Spring
+                                                                                      // Cache 不支持按照 ids 批量删除
     public void deleteMenuList(List<Long> ids) {
         // 校验是否还有子菜单
         ids.forEach(id -> {
@@ -138,7 +139,7 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public List<MenuDO> filterDisableMenus(List<MenuDO> menuList) {
-        if (CollUtil.isEmpty(menuList)){
+        if (CollUtil.isEmpty(menuList)) {
             return Collections.emptyList();
         }
         Map<Long, MenuDO> menuMap = convertMap(menuList, MenuDO::getId);
@@ -188,10 +189,13 @@ public class MenuServiceImpl implements MenuService {
     }
 
     @Override
-    @Cacheable(value = RedisKeyConstants.PERMISSION_MENU_ID_LIST, key = "#permission")
+    @Cacheable(value = RedisKeyConstants.PERMISSION_MENU_ID_LIST, key = "#p0")
     public List<Long> getMenuIdListByPermissionFromCache(String permission) {
-        List<MenuDO> menus = menuMapper.selectListByPermission(permission);
-        return convertList(menus, MenuDO::getId);
+        if (StrUtil.isBlank(permission)) {
+            return new ArrayList<>();
+        }
+        // convertList 须返回 ArrayList（见 CollectionUtils），不可变 List 写入 Redis 后反序列化会炸 @PreAuthorize
+        return convertList(menuMapper.selectListByPermission(permission), MenuDO::getId);
     }
 
     @Override
@@ -302,6 +306,10 @@ public class MenuServiceImpl implements MenuService {
             menu.setIcon("");
             menu.setPath("");
         }
+    }
+
+    private MenuServiceImpl getSelf() {
+        return SpringUtil.getBean(getClass());
     }
 
 }

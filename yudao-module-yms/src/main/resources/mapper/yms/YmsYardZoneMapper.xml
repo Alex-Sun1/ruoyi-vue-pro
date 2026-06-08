@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsYardZoneMapper">
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsYardZoneRespVO">
+        SELECT z.id, z.warehouse_id, z.zone_code, z.zone_name, z.zone_type, z.sort_order, z.remark
+        FROM yms_yard_zone z
+        WHERE z.deleted = 0
+          <if test="bo.warehouseId != null">
+              AND z.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.zoneCode != null and bo.zoneCode != ''">
+              AND z.zone_code LIKE CONCAT('%', #{bo.zoneCode}, '%')
+          </if>
+          <if test="bo.zoneType != null and bo.zoneType != ''">
+              AND z.zone_type = #{bo.zoneType}
+          </if>
+        ORDER BY z.sort_order ASC, z.zone_code ASC
+    </select>
+
+    <select id="selectListByWarehouse" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsYardZoneRespVO">
+        SELECT z.id, z.warehouse_id, z.zone_code, z.zone_name, z.zone_type, z.sort_order
+        FROM yms_yard_zone z
+        WHERE z.deleted = 0 AND z.warehouse_id = #{warehouseId}
+        ORDER BY z.sort_order ASC
+    </select>
+
+</mapper>

@@ -28,6 +28,9 @@ public class AuthPermissionInfoRespVO {
     @Schema(description = "菜单树", requiredMode = Schema.RequiredMode.REQUIRED)
     private List<MenuVO> menus;
 
+    @Schema(description = "海外仓组织数据权限（org-permission 模块启用时返回）")
+    private AuthOrgPermissionVO orgPermission;
+
     @Schema(description = "用户信息 VO")
     @Data
     @NoArgsConstructor

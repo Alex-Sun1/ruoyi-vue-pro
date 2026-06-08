@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.oms.dal.mysql.inboundplan.InboundPlanMapper">
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.oms.controller.admin.inboundplan.vo.InboundPlanRespVO">
+        SELECT
+            p.id, p.plan_no, p.status, p.warehouse_id,
+            p.container_order_id, p.container_order_no,
+            p.remark, p.create_time, p.update_time,
+            ch.channel_name,
+            c.customer_name,
+            c.eta,
+            c.total_cbm,
+            c.total_carton_qty,
+            c.total_weight
+        FROM wms_inbound_plan p
+        LEFT JOIN oms_container_order c ON c.id = p.container_order_id AND c.deleted = 0
+        LEFT JOIN base_channel ch ON ch.id = c.channel_id AND ch.deleted = 0
+        WHERE p.deleted = 0
+          AND p.tenant_id = #{bo.tenantId}
+          <if test="bo.warehouseId != null">
+              AND p.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.containerOrderId != null">
+              AND p.container_order_id = #{bo.containerOrderId}
+          </if>
+          <if test="bo.planNo != null and bo.planNo != ''">
+              AND p.plan_no LIKE CONCAT('%', #{bo.planNo}, '%')
+          </if>
+          <if test="bo.status != null and bo.status != ''">
+              AND p.status = #{bo.status}
+          </if>
+        ORDER BY p.create_time DESC
+    </select>
+
+</mapper>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsContainerResourceMapper">
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsContainerResourceRespVO">
+        SELECT
+            c.id, c.company_id, c.warehouse_id,
+            c.container_no, c.container_type, c.carrier, c.seal_no,
+            c.related_order_id, c.related_order_no, c.biz_root_id,
+            c.container_status, c.empty_status,
+            c.yard_position_id, c.yard_zone_id, c.dock_id, c.dock_code,
+            c.eta_time, c.arrived_time, c.devanning_start_time, c.devanning_finish_time, c.leave_time,
+            c.lfd_pickup, c.lfd_return,
+            c.tractor_no, c.plate_no, c.driver_name, c.driver_phone,
+            c.exception_flag, c.exception_reason, c.remark, c.create_time,
+            p.dock_code AS position_code,
+            z.zone_code, z.zone_name
+        FROM yms_container_resource c
+        LEFT JOIN yard_dock p ON c.yard_position_id = p.id AND p.deleted = 0
+        LEFT JOIN yard_zone z ON c.yard_zone_id = z.id AND z.deleted = 0
+        WHERE c.deleted = 0
+          <if test="bo.warehouseId != null">
+              AND c.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.companyId != null">
+              AND c.company_id = #{bo.companyId}
+          </if>
+          <if test="bo.containerNo != null and bo.containerNo != ''">
+              AND c.container_no LIKE CONCAT('%', #{bo.containerNo}, '%')
+          </if>
+          <if test="bo.containerType != null and bo.containerType != ''">
+              AND c.container_type = #{bo.containerType}
+          </if>
+          <if test="bo.containerStatus != null and bo.containerStatus != ''">
+              AND c.container_status = #{bo.containerStatus}
+          </if>
+          <if test="bo.emptyStatus != null and bo.emptyStatus != ''">
+              AND c.empty_status = #{bo.emptyStatus}
+          </if>
+          <if test="bo.plateNo != null and bo.plateNo != ''">
+              AND c.plate_no LIKE CONCAT('%', #{bo.plateNo}, '%')
+          </if>
+          <if test="bo.lfdWithinDays != null">
+              AND c.lfd_return IS NOT NULL AND c.lfd_return &lt;= DATE_ADD(CURDATE(), INTERVAL #{bo.lfdWithinDays} DAY)
+              AND c.container_status NOT IN ('LEFT_YARD', 'RETURNED', 'CANCELLED')
+          </if>
+        ORDER BY c.lfd_return ASC, c.create_time DESC
+    </select>
+
+</mapper>

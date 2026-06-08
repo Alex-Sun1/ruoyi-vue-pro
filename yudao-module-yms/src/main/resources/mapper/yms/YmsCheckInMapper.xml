@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsCheckInMapper">
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsCheckInRespVO">
+        SELECT c.id, c.warehouse_id, c.check_in_type, c.apt_id, c.apt_no, c.yard_task_id, c.yard_task_no,
+               c.container_resource_id, c.trailer_resource_id,
+               c.plate_no, c.driver_name, c.driver_phone, c.id_card_no,
+               c.container_no, c.trailer_no, c.vehicle_source, c.task_type,
+               c.check_result, c.reject_reason, c.match_type, c.check_in_time,
+               c.check_out_time, c.stay_minutes,
+               c.operator_id, c.operator_name, c.remark, c.create_time
+        FROM yms_check_in c
+        WHERE c.deleted = 0
+          <if test="bo.warehouseId != null">
+              AND c.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.checkInType != null and bo.checkInType != ''">
+              AND c.check_in_type = #{bo.checkInType}
+          </if>
+          <if test="bo.plateNo != null and bo.plateNo != ''">
+              AND c.plate_no LIKE CONCAT('%', #{bo.plateNo}, '%')
+          </if>
+          <if test="bo.driverName != null and bo.driverName != ''">
+              AND c.driver_name LIKE CONCAT('%', #{bo.driverName}, '%')
+          </if>
+          <if test="bo.checkResult != null and bo.checkResult != ''">
+              AND c.check_result = #{bo.checkResult}
+          </if>
+          <if test="bo.beginTime != null and bo.beginTime != ''">
+              AND c.check_in_time &gt;= #{bo.beginTime}
+          </if>
+          <if test="bo.endTime != null and bo.endTime != ''">
+              AND c.check_in_time &lt;= #{bo.endTime}
+          </if>
+        ORDER BY c.check_in_time DESC
+    </select>
+
+    <select id="selectInYardPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsInYardRespVO">
+        SELECT * FROM (
+            SELECT
+                'CONTAINER' AS object_type,
+                c.id AS resource_id,
+                c.warehouse_id,
+                c.plate_no,
+                NULL AS trailer_no,
+                c.container_no,
+                NULL AS vehicle_source,
+                c.container_status AS current_status,
+                CASE
+                    WHEN c.dock_id IS NOT NULL THEN 'DOCK'
+                    WHEN c.yard_position_id IS NOT NULL THEN 'YARD'
+                    ELSE 'WAITING'
+                END AS current_area,
+                COALESCE(
+                    c.dock_code,
+                    CONVERT(p.dock_code USING utf8mb4) COLLATE utf8mb4_0900_ai_ci,
+                    CONVERT(z.zone_name USING utf8mb4) COLLATE utf8mb4_0900_ai_ci,
+                    '等待区' COLLATE utf8mb4_0900_ai_ci
+                ) AS area_label,
+                c.arrived_time AS gate_in_time,
+                CASE
+                    WHEN c.arrived_time IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, c.arrived_time, NOW())
+                    ELSE NULL
+                END AS stay_minutes,
+                c.related_order_no,
+                NULL AS related_task_id,
+                c.driver_name,
+                c.driver_phone,
+                c.exception_flag,
+                c.exception_reason
+            FROM yms_container_resource c
+            LEFT JOIN yard_dock p ON c.yard_position_id = p.id AND p.deleted = 0
+            LEFT JOIN yard_zone z ON c.yard_zone_id = z.id AND z.deleted = 0
+            WHERE c.deleted = 0
+              AND c.container_status NOT IN ('LEFT_YARD', 'RETURNED', 'EXPECTED_ARRIVAL')
+
+            UNION ALL
+
+            SELECT
+                'TRAILER' AS object_type,
+                t.id AS resource_id,
+                t.warehouse_id,
+                t.plate_no,
+                t.trailer_no,
+                NULL AS container_no,
+                t.vehicle_source,
+                t.trailer_status AS current_status,
+                CASE
+                    WHEN t.dock_id IS NOT NULL THEN 'DOCK'
+                    WHEN t.yard_position_id IS NOT NULL THEN 'YARD'
+                    ELSE 'WAITING'
+                END AS current_area,
+                COALESCE(
+                    t.dock_code,
+                    CONVERT(p.dock_code USING utf8mb4) COLLATE utf8mb4_0900_ai_ci,
+                    CONVERT(z.zone_name USING utf8mb4) COLLATE utf8mb4_0900_ai_ci,
+                    '等待区' COLLATE utf8mb4_0900_ai_ci
+                ) AS area_label,
+                t.arrive_time AS gate_in_time,
+                CASE
+                    WHEN t.arrive_time IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, t.arrive_time, NOW())
+                    ELSE NULL
+                END AS stay_minutes,
+                t.related_order_no,
+                t.related_loading_task_id AS related_task_id,
+                t.driver_name,
+                t.driver_phone,
+                t.exception_flag,
+                t.exception_reason
+            FROM yms_trailer_resource t
+            LEFT JOIN yard_dock p ON t.yard_position_id = p.id AND p.deleted = 0
+            LEFT JOIN yard_zone z ON t.yard_zone_id = z.id AND z.deleted = 0
+            WHERE t.deleted = 0
+              AND t.trailer_status NOT IN ('LEFT_YARD', 'EXPECTED_ARRIVAL')
+        ) yard
+        WHERE 1 = 1
+          <if test="bo.warehouseId != null">
+              AND yard.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.objectType != null and bo.objectType != ''">
+              AND yard.object_type = #{bo.objectType}
+          </if>
+          <if test="bo.currentArea != null and bo.currentArea != ''">
+              AND yard.current_area = #{bo.currentArea}
+          </if>
+          <if test="bo.keyword != null and bo.keyword != ''">
+              AND (
+                  yard.plate_no LIKE CONCAT('%', #{bo.keyword}, '%')
+                  OR yard.container_no LIKE CONCAT('%', #{bo.keyword}, '%')
+                  OR yard.trailer_no LIKE CONCAT('%', #{bo.keyword}, '%')
+              )
+          </if>
+        ORDER BY yard.gate_in_time DESC
+    </select>
+
+    <select id="selectInYardByKeyword" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsInYardRespVO">
+        SELECT * FROM (
+            SELECT
+                'CONTAINER' AS object_type,
+                c.id AS resource_id,
+                c.warehouse_id,
+                c.plate_no,
+                NULL AS trailer_no,
+                c.container_no,
+                NULL AS vehicle_source,
+                c.container_status AS current_status,
+                CASE
+                    WHEN c.dock_id IS NOT NULL THEN 'DOCK'
+                    WHEN c.yard_position_id IS NOT NULL THEN 'YARD'
+                    ELSE 'WAITING'
+                END AS current_area,
+                COALESCE(
+                    c.dock_code,
+                    CONVERT(p.dock_code USING utf8mb4) COLLATE utf8mb4_0900_ai_ci,
+                    CONVERT(z.zone_name USING utf8mb4) COLLATE utf8mb4_0900_ai_ci,
+                    '等待区' COLLATE utf8mb4_0900_ai_ci
+                ) AS area_label,
+                c.arrived_time AS gate_in_time,
+                CASE
+                    WHEN c.arrived_time IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, c.arrived_time, NOW())
+                    ELSE NULL
+                END AS stay_minutes,
+                c.related_order_no,
+                NULL AS related_task_id,
+                c.driver_name,
+                c.driver_phone,
+                c.exception_flag,
+                c.exception_reason
+            FROM yms_container_resource c
+            LEFT JOIN yard_dock p ON c.yard_position_id = p.id AND p.deleted = 0
+            LEFT JOIN yard_zone z ON c.yard_zone_id = z.id AND z.deleted = 0
+            WHERE c.deleted = 0
+              AND c.container_status NOT IN ('LEFT_YARD', 'RETURNED', 'EXPECTED_ARRIVAL')
+
+            UNION ALL
+
+            SELECT
+                'TRAILER' AS object_type,
+                t.id AS resource_id,
+                t.warehouse_id,
+                t.plate_no,
+                t.trailer_no,
+                NULL AS container_no,
+                t.vehicle_source,
+                t.trailer_status AS current_status,
+                CASE
+                    WHEN t.dock_id IS NOT NULL THEN 'DOCK'
+                    WHEN t.yard_position_id IS NOT NULL THEN 'YARD'
+                    ELSE 'WAITING'
+                END AS current_area,
+                COALESCE(
+                    t.dock_code,
+                    CONVERT(p.dock_code USING utf8mb4) COLLATE utf8mb4_0900_ai_ci,
+                    CONVERT(z.zone_name USING utf8mb4) COLLATE utf8mb4_0900_ai_ci,
+                    '等待区' COLLATE utf8mb4_0900_ai_ci
+                ) AS area_label,
+                t.arrive_time AS gate_in_time,
+                CASE
+                    WHEN t.arrive_time IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, t.arrive_time, NOW())
+                    ELSE NULL
+                END AS stay_minutes,
+                t.related_order_no,
+                t.related_loading_task_id AS related_task_id,
+                t.driver_name,
+                t.driver_phone,
+                t.exception_flag,
+                t.exception_reason
+            FROM yms_trailer_resource t
+            LEFT JOIN yard_dock p ON t.yard_position_id = p.id AND p.deleted = 0
+            LEFT JOIN yard_zone z ON t.yard_zone_id = z.id AND z.deleted = 0
+            WHERE t.deleted = 0
+              AND t.trailer_status NOT IN ('LEFT_YARD', 'EXPECTED_ARRIVAL')
+        ) yard
+        WHERE yard.warehouse_id = #{warehouseId}
+          AND (
+              yard.plate_no = #{keyword}
+              OR yard.container_no = #{keyword}
+              OR yard.trailer_no = #{keyword}
+              OR yard.plate_no LIKE CONCAT('%', #{keyword}, '%')
+              OR yard.container_no LIKE CONCAT('%', #{keyword}, '%')
+              OR yard.trailer_no LIKE CONCAT('%', #{keyword}, '%')
+          )
+        ORDER BY yard.gate_in_time DESC
+        LIMIT 10
+    </select>
+
+</mapper>

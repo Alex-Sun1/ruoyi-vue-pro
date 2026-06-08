@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsBlacklistMapper">
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsBlacklistRespVO">
+        SELECT b.id, b.target_type, b.target_value,
+               b.reason, b.blacklist_time, b.expire_time, b.status,
+               b.operator_id, b.operator_name, b.remark, b.create_time
+        FROM yms_blacklist b
+        WHERE b.deleted = 0
+          <if test="bo.targetType != null and bo.targetType != ''">
+              AND b.target_type = #{bo.targetType}
+          </if>
+          <if test="bo.targetValue != null and bo.targetValue != ''">
+              AND b.target_value LIKE CONCAT('%', #{bo.targetValue}, '%')
+          </if>
+          <if test="bo.status != null and bo.status != ''">
+              AND b.status = #{bo.status}
+          </if>
+        ORDER BY b.blacklist_time DESC
+    </select>
+
+</mapper>

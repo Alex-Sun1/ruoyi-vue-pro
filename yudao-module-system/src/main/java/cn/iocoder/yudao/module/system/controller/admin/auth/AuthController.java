@@ -15,6 +15,7 @@ import cn.iocoder.yudao.module.system.dal.dataobject.permission.RoleDO;
 import cn.iocoder.yudao.module.system.dal.dataobject.user.AdminUserDO;
 import cn.iocoder.yudao.module.system.enums.logger.LoginLogTypeEnum;
 import cn.iocoder.yudao.module.system.service.auth.AdminAuthService;
+import cn.iocoder.yudao.module.system.service.auth.AuthPermissionOrgContributor;
 import cn.iocoder.yudao.module.system.service.permission.MenuService;
 import cn.iocoder.yudao.module.system.service.permission.PermissionService;
 import cn.iocoder.yudao.module.system.service.permission.RoleService;
@@ -25,6 +26,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.annotation.security.PermitAll;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -62,6 +64,9 @@ public class AuthController {
 
     @Resource
     private SecurityProperties securityProperties;
+
+    @Autowired(required = false)
+    private AuthPermissionOrgContributor authPermissionOrgContributor;
 
     @PostMapping("/login")
     @PermitAll
@@ -103,7 +108,7 @@ public class AuthController {
         // 1.2 获得角色列表
         Set<Long> roleIds = permissionService.getUserRoleIdListByUserId(getLoginUserId());
         if (CollUtil.isEmpty(roleIds)) {
-            return success(AuthConvert.INSTANCE.convert(user, Collections.emptyList(), Collections.emptyList()));
+            return success(appendOrgPermission(AuthConvert.INSTANCE.convert(user, Collections.emptyList(), Collections.emptyList())));
         }
         List<RoleDO> roles = roleService.getRoleList(roleIds);
         roles.removeIf(role -> !CommonStatusEnum.ENABLE.getStatus().equals(role.getStatus())); // 移除禁用的角色
@@ -114,7 +119,15 @@ public class AuthController {
         menuList = menuService.filterDisableMenus(menuList);
 
         // 2. 拼接结果返回
-        return success(AuthConvert.INSTANCE.convert(user, roles, menuList));
+        return success(appendOrgPermission(AuthConvert.INSTANCE.convert(user, roles, menuList)));
+    }
+
+    private AuthPermissionInfoRespVO appendOrgPermission(AuthPermissionInfoRespVO resp) {
+        if (resp == null || authPermissionOrgContributor == null) {
+            return resp;
+        }
+        resp.setOrgPermission(authPermissionOrgContributor.buildOrgPermission(getLoginUserId()));
+        return resp;
     }
 
     @PostMapping("/register")

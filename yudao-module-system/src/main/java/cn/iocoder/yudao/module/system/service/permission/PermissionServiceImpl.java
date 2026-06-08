@@ -30,8 +30,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import java.util.*;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static cn.iocoder.yudao.framework.common.util.collection.CollectionUtils.convertSet;
 import static cn.iocoder.yudao.framework.common.util.json.JsonUtils.toJsonString;
@@ -59,11 +61,17 @@ public class PermissionServiceImpl implements PermissionService {
     @Resource
     private AdminUserService userService;
 
+    @Autowired(required = false)
+    private List<UserRoleAssignListener> userRoleAssignListeners;
+
     @Override
     public boolean hasAnyPermissions(Long userId, String... permissions) {
         // 如果为空，说明已经有权限
         if (ArrayUtil.isEmpty(permissions)) {
             return true;
+        }
+        if (userId == null) {
+            return false;
         }
 
         // 获得当前登录的角色。如果为空，说明没有权限
@@ -86,7 +94,7 @@ public class PermissionServiceImpl implements PermissionService {
     /**
      * 判断指定角色，是否拥有该 permission 权限
      *
-     * @param roles 指定角色数组
+     * @param roles      指定角色数组
      * @param permission 权限标识
      * @return 是否拥有
      */
@@ -97,13 +105,17 @@ public class PermissionServiceImpl implements PermissionService {
             return false;
         }
 
-        // 判断是否有权限
-        Set<Long> roleIds = convertSet(roles, RoleDO::getId);
+        Set<Long> roleIds = roles.stream().map(RoleDO::getId).filter(Objects::nonNull).collect(Collectors.toSet());
         for (Long menuId : menuIds) {
-            // 获得拥有该菜单的角色编号集合
+            if (menuId == null) {
+                continue;
+            }
             Set<Long> menuRoleIds = getSelf().getMenuRoleIdListByMenuIdFromCache(menuId);
-            // 如果有交集，说明有权限
-            if (CollUtil.containsAny(menuRoleIds, roleIds)) {
+            if (CollUtil.isEmpty(menuRoleIds)) {
+                continue;
+            }
+            Set<Long> validMenuRoleIds = menuRoleIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
+            if (CollUtil.containsAny(validMenuRoleIds, roleIds)) {
                 return true;
             }
         }
@@ -115,6 +127,9 @@ public class PermissionServiceImpl implements PermissionService {
         // 如果为空，说明已经有权限
         if (ArrayUtil.isEmpty(roles)) {
             return true;
+        }
+        if (userId == null) {
+            return false;
         }
 
         // 获得当前登录的角色。如果为空，说明没有权限
@@ -128,15 +143,15 @@ public class PermissionServiceImpl implements PermissionService {
         return CollUtil.containsAny(userRoles, Sets.newHashSet(roles));
     }
 
-    // ========== 角色-菜单的相关方法  ==========
+    // ========== 角色-菜单的相关方法 ==========
 
     @Override
     @DSTransactional // 多数据源，使用 @DSTransactional 保证本地事务，以及数据源的切换
     @Caching(evict = {
-            @CacheEvict(value = RedisKeyConstants.MENU_ROLE_ID_LIST,
-            allEntries = true),
-            @CacheEvict(value = RedisKeyConstants.PERMISSION_MENU_ID_LIST,
-            allEntries = true) // allEntries 清空所有缓存，主要一次更新涉及到的 menuIds 较多，反倒批量会更快
+            @CacheEvict(value = RedisKeyConstants.MENU_ROLE_ID_LIST, allEntries = true),
+            @CacheEvict(value = RedisKeyConstants.PERMISSION_MENU_ID_LIST, allEntries = true) // allEntries
+                                                                                              // 清空所有缓存，主要一次更新涉及到的
+                                                                                              // menuIds 较多，反倒批量会更快
     })
     public void assignRoleMenu(Long roleId, Set<Long> menuIds) {
         // 获得角色拥有菜单编号
@@ -162,10 +177,10 @@ public class PermissionServiceImpl implements PermissionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     @Caching(evict = {
-            @CacheEvict(value = RedisKeyConstants.MENU_ROLE_ID_LIST,
-                    allEntries = true), // allEntries 清空所有缓存，此处无法方便获得 roleId 对应的 menu 缓存们
-            @CacheEvict(value = RedisKeyConstants.USER_ROLE_ID_LIST,
-                    allEntries = true) // allEntries 清空所有缓存，此处无法方便获得 roleId 对应的 user 缓存们
+            @CacheEvict(value = RedisKeyConstants.MENU_ROLE_ID_LIST, allEntries = true), // allEntries 清空所有缓存，此处无法方便获得
+                                                                                         // roleId 对应的 menu 缓存们
+            @CacheEvict(value = RedisKeyConstants.USER_ROLE_ID_LIST, allEntries = true) // allEntries 清空所有缓存，此处无法方便获得
+                                                                                        // roleId 对应的 user 缓存们
     })
     public void processRoleDeleted(Long roleId) {
         // 标记删除 UserRole
@@ -195,12 +210,22 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
-    @Cacheable(value = RedisKeyConstants.MENU_ROLE_ID_LIST, key = "#menuId")
     public Set<Long> getMenuRoleIdListByMenuIdFromCache(Long menuId) {
-        return convertSet(roleMenuMapper.selectListByMenuId(menuId), RoleMenuDO::getRoleId);
+        if (menuId == null) {
+            return Collections.emptySet();
+        }
+        return getSelf().getMenuRoleIdListByMenuIdFromCache0(menuId);
     }
 
-    // ========== 用户-角色的相关方法  ==========
+    @Cacheable(value = RedisKeyConstants.MENU_ROLE_ID_LIST, key = "#p0")
+    Set<Long> getMenuRoleIdListByMenuIdFromCache0(Long menuId) {
+        return roleMenuMapper.selectListByMenuId(menuId).stream()
+                .map(RoleMenuDO::getRoleId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+    }
+
+    // ========== 用户-角色的相关方法 ==========
 
     @Override
     @DSTransactional // 多数据源，使用 @DSTransactional 保证本地事务，以及数据源的切换
@@ -225,12 +250,14 @@ public class PermissionServiceImpl implements PermissionService {
         if (!CollectionUtil.isEmpty(deleteMenuIds)) {
             userRoleMapper.deleteListByUserIdAndRoleIdIds(userId, deleteMenuIds);
         }
+        notifyUserRoleChanged(userId);
     }
 
     @Override
     @CacheEvict(value = RedisKeyConstants.USER_ROLE_ID_LIST, key = "#userId")
     public void processUserDeleted(Long userId) {
         userRoleMapper.deleteListByUserId(userId);
+        notifyUserRoleChanged(userId);
     }
 
     @Override
@@ -239,8 +266,15 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
-    @Cacheable(value = RedisKeyConstants.USER_ROLE_ID_LIST, key = "#userId")
     public Set<Long> getUserRoleIdListByUserIdFromCache(Long userId) {
+        if (userId == null) {
+            return Collections.emptySet();
+        }
+        return getSelf().getUserRoleIdListByUserIdFromCache0(userId);
+    }
+
+    @Cacheable(value = RedisKeyConstants.USER_ROLE_ID_LIST, key = "#p0")
+    Set<Long> getUserRoleIdListByUserIdFromCache0(Long userId) {
         return getUserRoleIdListByUserId(userId);
     }
 
@@ -257,15 +291,18 @@ public class PermissionServiceImpl implements PermissionService {
      */
     @VisibleForTesting
     List<RoleDO> getEnableUserRoleListByUserIdFromCache(Long userId) {
+        if (userId == null) {
+            return Collections.emptyList();
+        }
         // 获得用户拥有的角色编号
         Set<Long> roleIds = getSelf().getUserRoleIdListByUserIdFromCache(userId);
-        // 获得角色数组，并移除被禁用的
-        List<RoleDO> roles = roleService.getRoleListFromCache(roleIds);
+        // 获得角色数组，并移除被禁用的（复制为可变 List，避免缓存反序列化返回不可变集合）
+        List<RoleDO> roles = new ArrayList<>(roleService.getRoleListFromCache(roleIds));
         roles.removeIf(role -> !CommonStatusEnum.ENABLE.getStatus().equals(role.getStatus()));
         return roles;
     }
 
-    // ========== 用户-部门的相关方法  ==========
+    // ========== 用户-部门的相关方法 ==========
 
     @Override
     public void assignRoleDataScope(Long roleId, Integer dataScope, Set<Long> dataScopeDeptIds) {
@@ -341,6 +378,13 @@ public class PermissionServiceImpl implements PermissionService {
      */
     private PermissionServiceImpl getSelf() {
         return SpringUtil.getBean(getClass());
+    }
+
+    private void notifyUserRoleChanged(Long userId) {
+        if (CollUtil.isEmpty(userRoleAssignListeners)) {
+            return;
+        }
+        userRoleAssignListeners.forEach(listener -> listener.onUserRoleChanged(userId));
     }
 
 }

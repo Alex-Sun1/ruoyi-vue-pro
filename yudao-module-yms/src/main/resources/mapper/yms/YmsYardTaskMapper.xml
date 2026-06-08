@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsYardTaskMapper">
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsYardTaskRespVO">
+        SELECT t.id, t.yard_task_no, t.task_type, t.warehouse_id,
+               t.source_order_type, t.source_order_id, t.source_order_no,
+               t.container_no, t.container_resource_id, t.trailer_resource_id,
+               t.wms_ready_status, t.wms_ready_time, t.appointment_id,
+               t.dock_assign_time, t.call_time, t.priority,
+               t.truck_no, t.driver_name, t.driver_phone,
+               t.eta_yard_time, t.gate_in_time, t.dock_start_time, t.dock_finish_time,
+               t.release_time, t.gate_out_time,
+               t.dock_id, t.dock_code,
+               t.operation_task_id, t.operation_status, t.operation_progress,
+               t.operation_start_time, t.operation_finish_time, t.estimated_finish_time,
+               t.loaded_qty, t.total_qty, t.loaded_pallet_qty, t.total_pallet_qty,
+               t.yard_status,
+               it.id AS open_internal_task_id,
+               it.task_no AS open_internal_task_no,
+               it.internal_task_type AS open_internal_task_type,
+               it.task_status AS open_internal_task_status,
+               COALESCE(it.to_dock_code, it.to_position_code) AS open_internal_task_target_code,
+               t.visit_no, t.unload_round_no,
+               t.is_reentry, t.reentry_reason, t.parent_task_id,
+               t.exception_flag, t.exception_reason, t.source, t.remark,
+               t.create_time
+        FROM yms_yard_task t
+        LEFT JOIN yms_internal_task it ON it.id = (
+            SELECT x.id
+            FROM yms_internal_task x
+            WHERE x.deleted = 0
+              AND x.parent_yard_task_id = t.id
+              AND x.task_status NOT IN ('COMPLETED', 'FAILED', 'CANCELLED')
+            ORDER BY x.create_time DESC
+            LIMIT 1
+        )
+        WHERE t.deleted = 0
+          <if test="bo.warehouseId != null">
+              AND t.warehouse_id = #{bo.warehouseId}
+          </if>
+          <choose>
+              <when test="bo.taskType != null and bo.taskType != ''">
+                  AND t.task_type = #{bo.taskType}
+              </when>
+              <when test="bo.taskGroup != null and bo.taskGroup != ''">
+                  <choose>
+                      <when test="bo.taskGroup == 'DEVANNING'">
+                          AND t.task_type = 'DEVANNING'
+                      </when>
+                      <when test="bo.taskGroup == 'LOADING'">
+                          AND t.task_type IN ('DELIVERY_LOADING','TRANSFER_LOADING','PICKUP_LOADING','RETURN_LOADING')
+                      </when>
+                  </choose>
+              </when>
+          </choose>
+          <if test="bo.yardStatus != null and bo.yardStatus != ''">
+              AND FIND_IN_SET(t.yard_status, #{bo.yardStatus})
+          </if>
+          <if test="bo.keyword != null and bo.keyword != ''">
+              AND (t.yard_task_no LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR t.source_order_no LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR t.container_no LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR t.truck_no LIKE CONCAT('%', #{bo.keyword}, '%')
+                OR t.driver_name LIKE CONCAT('%', #{bo.keyword}, '%'))
+          </if>
+          <if test="bo.containerNo != null and bo.containerNo != ''">
+              AND t.container_no LIKE CONCAT('%', #{bo.containerNo}, '%')
+          </if>
+          <if test="bo.truckNo != null and bo.truckNo != ''">
+              AND t.truck_no LIKE CONCAT('%', #{bo.truckNo}, '%')
+          </if>
+          <if test="bo.sourceOrderNo != null and bo.sourceOrderNo != ''">
+              AND t.source_order_no LIKE CONCAT('%', #{bo.sourceOrderNo}, '%')
+          </if>
+          <if test="bo.beginGateInTime != null and bo.beginGateInTime != ''">
+              AND t.gate_in_time &gt;= #{bo.beginGateInTime}
+          </if>
+          <if test="bo.endGateInTime != null and bo.endGateInTime != ''">
+              AND t.gate_in_time &lt;= #{bo.endGateInTime}
+          </if>
+          <if test="bo.timeField != null and bo.timeField != '' and (bo.beginTime != null and bo.beginTime != '' or bo.endTime != null and bo.endTime != '')">
+              <choose>
+                  <when test="bo.timeField == 'eta_yard_time'">
+                      <if test="bo.beginTime != null and bo.beginTime != ''">AND t.eta_yard_time &gt;= #{bo.beginTime}</if>
+                      <if test="bo.endTime != null and bo.endTime != ''">AND t.eta_yard_time &lt;= #{bo.endTime}</if>
+                  </when>
+                  <when test="bo.timeField == 'gate_in_time'">
+                      <if test="bo.beginTime != null and bo.beginTime != ''">AND t.gate_in_time &gt;= #{bo.beginTime}</if>
+                      <if test="bo.endTime != null and bo.endTime != ''">AND t.gate_in_time &lt;= #{bo.endTime}</if>
+                  </when>
+                  <when test="bo.timeField == 'dock_start_time'">
+                      <if test="bo.beginTime != null and bo.beginTime != ''">AND t.dock_start_time &gt;= #{bo.beginTime}</if>
+                      <if test="bo.endTime != null and bo.endTime != ''">AND t.dock_start_time &lt;= #{bo.endTime}</if>
+                  </when>
+                  <when test="bo.timeField == 'dock_finish_time'">
+                      <if test="bo.beginTime != null and bo.beginTime != ''">AND t.dock_finish_time &gt;= #{bo.beginTime}</if>
+                      <if test="bo.endTime != null and bo.endTime != ''">AND t.dock_finish_time &lt;= #{bo.endTime}</if>
+                  </when>
+                  <when test="bo.timeField == 'release_time'">
+                      <if test="bo.beginTime != null and bo.beginTime != ''">AND t.release_time &gt;= #{bo.beginTime}</if>
+                      <if test="bo.endTime != null and bo.endTime != ''">AND t.release_time &lt;= #{bo.endTime}</if>
+                  </when>
+                  <when test="bo.timeField == 'gate_out_time'">
+                      <if test="bo.beginTime != null and bo.beginTime != ''">AND t.gate_out_time &gt;= #{bo.beginTime}</if>
+                      <if test="bo.endTime != null and bo.endTime != ''">AND t.gate_out_time &lt;= #{bo.endTime}</if>
+                  </when>
+                  <otherwise>
+                      <if test="bo.beginTime != null and bo.beginTime != ''">AND t.create_time &gt;= #{bo.beginTime}</if>
+                      <if test="bo.endTime != null and bo.endTime != ''">AND t.create_time &lt;= #{bo.endTime}</if>
+                  </otherwise>
+              </choose>
+          </if>
+        ORDER BY t.gate_in_time DESC, t.create_time DESC
+    </select>
+
+</mapper>

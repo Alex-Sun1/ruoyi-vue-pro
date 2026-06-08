@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsSlotTemplateMapper">
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsSlotTemplateRespVO">
+        SELECT t.id, t.warehouse_id, t.weekdays, t.slot_start, t.slot_end,
+               t.capacity, t.task_type, t.enabled, t.remark
+        FROM yms_slot_template t
+        WHERE t.deleted = 0
+          <if test="bo.warehouseId != null">
+              AND t.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.taskType != null and bo.taskType != ''">
+              AND (t.task_type = #{bo.taskType} OR t.task_type = 'ALL')
+          </if>
+          <if test="bo.enabled != null">
+              AND t.enabled = #{bo.enabled}
+          </if>
+        ORDER BY t.slot_start ASC
+    </select>
+
+    <select id="selectEnabledByWarehouse" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsSlotTemplateRespVO">
+        SELECT t.id, t.warehouse_id, t.weekdays, t.slot_start, t.slot_end,
+               t.capacity, t.task_type, t.enabled, t.remark
+        FROM yms_slot_template t
+        WHERE t.deleted = 0 AND t.enabled = 1
+          AND t.warehouse_id = #{warehouseId}
+          <if test="taskType != null and taskType != ''">
+              AND (t.task_type = #{taskType} OR t.task_type = 'ALL')
+          </if>
+        ORDER BY t.slot_start ASC
+    </select>
+
+</mapper>

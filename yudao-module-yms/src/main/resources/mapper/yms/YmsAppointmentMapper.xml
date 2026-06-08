@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsAppointmentMapper">
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsAppointmentRespVO">
+        SELECT a.id, a.apt_no, a.warehouse_id, a.slot_template_id, a.apt_date, a.apt_slot,
+               a.task_type, a.plate_no, a.driver_name, a.driver_phone,
+               a.container_no, a.source_order_no, a.status, a.yard_task_id,
+               a.cancel_reason, a.remark, a.create_time
+        FROM yms_appointment a
+        WHERE a.deleted = 0
+          <if test="bo.warehouseId != null">
+              AND a.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.aptDate != null and bo.aptDate != ''">
+              AND a.apt_date = #{bo.aptDate}
+          </if>
+          <if test="bo.status != null and bo.status != ''">
+              AND a.status = #{bo.status}
+          </if>
+          <if test="bo.plateNo != null and bo.plateNo != ''">
+              AND a.plate_no LIKE CONCAT('%', #{bo.plateNo}, '%')
+          </if>
+          <if test="bo.driverName != null and bo.driverName != ''">
+              AND a.driver_name LIKE CONCAT('%', #{bo.driverName}, '%')
+          </if>
+          <if test="bo.containerNo != null and bo.containerNo != ''">
+              AND a.container_no LIKE CONCAT('%', #{bo.containerNo}, '%')
+          </if>
+          <if test="bo.taskType != null and bo.taskType != ''">
+              AND a.task_type = #{bo.taskType}
+          </if>
+        ORDER BY a.apt_date DESC, a.apt_slot ASC, a.create_time DESC
+    </select>
+
+    <select id="countBySlot" resultType="int">
+        SELECT COUNT(1) FROM yms_appointment
+        WHERE deleted = 0
+          AND warehouse_id = #{warehouseId}
+          AND apt_date = #{aptDate}
+          AND apt_slot = #{aptSlot}
+          AND status NOT IN ('CANCELLED', 'NO_SHOW')
+    </select>
+
+    <select id="selectListByDate" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsAppointmentRespVO">
+        SELECT a.id, a.apt_no, a.warehouse_id, a.apt_date, a.apt_slot,
+               a.task_type, a.plate_no, a.driver_name, a.container_no, a.status
+        FROM yms_appointment a
+        WHERE a.deleted = 0
+          AND a.warehouse_id = #{warehouseId}
+          AND a.apt_date = #{aptDate}
+          AND a.status NOT IN ('CANCELLED', 'NO_SHOW')
+        ORDER BY a.apt_slot ASC
+    </select>
+
+</mapper>

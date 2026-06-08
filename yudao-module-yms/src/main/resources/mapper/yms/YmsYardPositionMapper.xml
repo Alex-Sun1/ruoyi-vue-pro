@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsYardPositionMapper">
+
+    <sql id="selectColumns">
+        p.id, p.warehouse_id, p.zone_id, p.zone_code,
+        p.position_code, p.position_name, p.position_type, p.position_status,
+        p.grid_row, p.grid_col,
+        p.occupied_object_type, p.occupied_object_id, p.occupied_object_no, p.occupied_since,
+        p.remark, p.create_time,
+        z.zone_name
+    </sql>
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsYardPositionRespVO">
+        SELECT <include refid="selectColumns"/>
+        FROM yms_yard_position p
+        LEFT JOIN yms_yard_zone z ON p.zone_id = z.id AND z.deleted = 0
+        WHERE p.deleted = 0
+          <if test="bo.warehouseId != null">
+              AND p.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.zoneId != null">
+              AND p.zone_id = #{bo.zoneId}
+          </if>
+          <if test="bo.positionCode != null and bo.positionCode != ''">
+              AND p.position_code LIKE CONCAT('%', #{bo.positionCode}, '%')
+          </if>
+          <if test="bo.positionType != null and bo.positionType != ''">
+              AND p.position_type = #{bo.positionType}
+          </if>
+          <if test="bo.positionStatus != null and bo.positionStatus != ''">
+              AND p.position_status = #{bo.positionStatus}
+          </if>
+          <if test="bo.occupiedObjectNo != null and bo.occupiedObjectNo != ''">
+              AND p.occupied_object_no LIKE CONCAT('%', #{bo.occupiedObjectNo}, '%')
+          </if>
+        ORDER BY z.sort_order ASC, p.grid_row ASC, p.grid_col ASC, p.position_code ASC
+    </select>
+
+    <select id="selectListByZone" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsYardPositionRespVO">
+        SELECT <include refid="selectColumns"/>
+        FROM yms_yard_position p
+        LEFT JOIN yms_yard_zone z ON p.zone_id = z.id AND z.deleted = 0
+        WHERE p.deleted = 0 AND p.zone_id = #{zoneId}
+        ORDER BY p.grid_row ASC, p.grid_col ASC, p.position_code ASC
+    </select>
+
+    <select id="selectFreeList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsYardPositionRespVO">
+        SELECT <include refid="selectColumns"/>
+        FROM yms_yard_position p
+        LEFT JOIN yms_yard_zone z ON p.zone_id = z.id AND z.deleted = 0
+        WHERE p.deleted = 0
+          AND p.warehouse_id = #{warehouseId}
+          AND p.position_status = 'FREE'
+          <if test="positionType != null and positionType != ''">
+              AND p.position_type = #{positionType}
+          </if>
+        ORDER BY z.sort_order ASC, p.position_code ASC
+    </select>
+
+</mapper>

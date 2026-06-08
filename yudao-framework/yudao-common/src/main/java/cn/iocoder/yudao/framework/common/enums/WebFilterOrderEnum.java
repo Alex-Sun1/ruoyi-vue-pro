@@ -21,9 +21,11 @@ public interface WebFilterOrderEnum {
 
     int TENANT_CONTEXT_FILTER = - 104; // 需要保证在 ApiAccessLogFilter 前面
 
-    int API_ACCESS_LOG_FILTER = -103; // 需要保证在 RequestBodyCacheFilter 后面
+    int ORG_CONTEXT_FILTER = -103; // 海外仓顶栏上下文（主体/仓库 Header，X-Org-Company-Id / X-Org-Warehouse-Id）
 
-    int XSS_FILTER = -102;  // 需要保证在 RequestBodyCacheFilter 后面
+    int API_ACCESS_LOG_FILTER = -102; // 需要保证在 RequestBodyCacheFilter 后面
+
+    int XSS_FILTER = -101;  // 需要保证在 RequestBodyCacheFilter 后面
 
     // Spring Security Filter 默认为 -100，可见 org.springframework.boot.autoconfigure.security.SecurityProperties 配置属性类
 

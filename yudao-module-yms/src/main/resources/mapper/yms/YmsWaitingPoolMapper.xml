@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsWaitingPoolMapper">
+
+    <select id="selectWaitingList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsWaitingPoolRespVO">
+        SELECT * FROM (
+            SELECT
+                c.id AS resource_id,
+                'CONTAINER' AS object_type,
+                c.container_no AS object_label,
+                'CONTAINER' AS wait_type,
+                NULL AS vehicle_source,
+                (
+                    SELECT yt.id FROM yms_yard_task yt
+                    WHERE yt.container_no = c.container_no AND yt.deleted = 0
+                      AND yt.warehouse_id = c.warehouse_id
+                      AND yt.yard_status NOT IN ('LEFT_YARD', 'CANCELLED', 'EXCEPTION_CLOSED')
+                    ORDER BY yt.create_time DESC LIMIT 1
+                ) AS related_task_id,
+                (
+                    SELECT yt.yard_task_no FROM yms_yard_task yt
+                    WHERE yt.container_no = c.container_no AND yt.deleted = 0
+                      AND yt.warehouse_id = c.warehouse_id
+                      AND yt.yard_status NOT IN ('LEFT_YARD', 'CANCELLED', 'EXCEPTION_CLOSED')
+                    ORDER BY yt.create_time DESC LIMIT 1
+                ) AS related_task_no,
+                c.arrived_time AS arrived_time,
+                CASE
+                    WHEN c.arrived_time IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, c.arrived_time, NOW())
+                    ELSE NULL
+                END AS wait_minutes,
+                c.container_status AS status,
+                CASE
+                    WHEN c.exception_flag = 1 THEN COALESCE(c.exception_reason, '资源异常')
+                    WHEN c.container_status = 'CALLED' THEN '已叫号，等待进场Dock'
+                    WHEN c.dock_id IS NULL THEN '等待Dock分配'
+                    ELSE '排队等待叫号'
+                END AS block_reason,
+                c.warehouse_id AS warehouse_id,
+                CASE
+                    WHEN c.exception_flag = 1 THEN 0
+                    WHEN c.container_status IN ('WAIT_DEVANNING', 'YARD_ASSIGNED', 'DROPPED', 'ARRIVED') THEN 1
+                    ELSE 0
+                END AS callable
+            FROM yms_container_resource c
+            WHERE c.deleted = 0
+              AND c.container_status IN ('ARRIVED', 'YARD_ASSIGNED', 'DROPPED', 'WAIT_DEVANNING', 'CALLED')
+
+            UNION ALL
+
+            SELECT
+                t.id AS resource_id,
+                'TRAILER' AS object_type,
+                COALESCE(t.trailer_no, t.plate_no) AS object_label,
+                CASE
+                    WHEN t.vehicle_source = 'RENTED_TRAILER' THEN 'RENTED_TRAILER'
+                    ELSE 'LOADING'
+                END AS wait_type,
+                t.vehicle_source AS vehicle_source,
+                t.related_loading_task_id AS related_task_id,
+                yt.yard_task_no AS related_task_no,
+                t.arrive_time AS arrived_time,
+                CASE
+                    WHEN t.arrive_time IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, t.arrive_time, NOW())
+                    ELSE NULL
+                END AS wait_minutes,
+                t.trailer_status AS status,
+                CASE
+                    WHEN t.exception_flag = 1 THEN COALESCE(t.exception_reason, '资源异常')
+                    WHEN t.wms_ready_status IS NOT NULL AND t.wms_ready_status != 'READY' THEN '货未备齐'
+                    WHEN t.trailer_status = 'CALLED' THEN '已叫号，等待进场Dock'
+                    WHEN t.dock_id IS NULL THEN '等待Dock分配'
+                    ELSE '排队等待叫号'
+                END AS block_reason,
+                t.warehouse_id AS warehouse_id,
+                CASE
+                    WHEN t.exception_flag = 1 THEN 0
+                    WHEN t.trailer_status IN ('WAIT_LOADING', 'ARRIVED_EMPTY')
+                         AND (t.wms_ready_status IS NULL OR t.wms_ready_status = 'READY') THEN 1
+                    ELSE 0
+                END AS callable
+            FROM yms_trailer_resource t
+            LEFT JOIN yms_yard_task yt ON yt.id = t.related_loading_task_id AND yt.deleted = 0
+            WHERE t.deleted = 0
+              AND t.trailer_status IN ('ARRIVED_EMPTY', 'WAIT_LOADING', 'CALLED')
+        ) pool
+        WHERE 1 = 1
+          <if test="bo.warehouseId != null">
+              AND pool.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.waitType != null and bo.waitType != ''">
+              AND pool.wait_type = #{bo.waitType}
+          </if>
+          <if test="bo.keyword != null and bo.keyword != ''">
+              AND pool.object_label LIKE CONCAT('%', #{bo.keyword}, '%')
+          </if>
+        ORDER BY pool.arrived_time ASC
+    </select>
+
+</mapper>

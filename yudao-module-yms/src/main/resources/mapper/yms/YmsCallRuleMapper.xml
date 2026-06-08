@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cn.iocoder.yudao.module.yms.dal.mysql.YmsCallRuleMapper">
+
+    <select id="selectPageList" resultType="cn.iocoder.yudao.module.yms.controller.admin.vo.YmsCallRuleRespVO">
+        SELECT r.id, r.rule_name, r.warehouse_id, r.task_type, r.dock_type,
+               r.wms_ready_required, r.appointment_required, r.allow_manual_insert,
+               r.auto_call_enabled, r.require_dispatch_confirm, r.max_call_count,
+               r.call_timeout_minutes, r.enabled, r.sort_order, r.remark, r.create_time
+        FROM yms_call_rule r
+        WHERE r.deleted = 0
+          <if test="bo.warehouseId != null">
+              AND r.warehouse_id = #{bo.warehouseId}
+          </if>
+          <if test="bo.taskType != null and bo.taskType != ''">
+              AND r.task_type = #{bo.taskType}
+          </if>
+          <if test="bo.dockType != null and bo.dockType != ''">
+              AND (r.dock_type = #{bo.dockType} OR r.dock_type IS NULL)
+          </if>
+          <if test="bo.enabled != null">
+              AND r.enabled = #{bo.enabled}
+          </if>
+          <if test="bo.ruleName != null and bo.ruleName != ''">
+              AND r.rule_name LIKE CONCAT('%', #{bo.ruleName}, '%')
+          </if>
+        ORDER BY r.sort_order ASC, r.create_time DESC
+    </select>
+
+</mapper>

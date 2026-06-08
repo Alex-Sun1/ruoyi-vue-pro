@@ -53,8 +53,7 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    @LogRecord(type = SYSTEM_ROLE_TYPE, subType = SYSTEM_ROLE_CREATE_SUB_TYPE, bizNo = "{{#role.id}}",
-            success = SYSTEM_ROLE_CREATE_SUCCESS)
+    @LogRecord(type = SYSTEM_ROLE_TYPE, subType = SYSTEM_ROLE_CREATE_SUB_TYPE, bizNo = "{{#role.id}}", success = SYSTEM_ROLE_CREATE_SUCCESS)
     public Long createRole(RoleSaveReqVO createReqVO, Integer type) {
         // 1. 校验角色
         validateRoleDuplicate(createReqVO.getName(), createReqVO.getCode(), null);
@@ -73,8 +72,7 @@ public class RoleServiceImpl implements RoleService {
 
     @Override
     @CacheEvict(value = RedisKeyConstants.ROLE, key = "#updateReqVO.id")
-    @LogRecord(type = SYSTEM_ROLE_TYPE, subType = SYSTEM_ROLE_UPDATE_SUB_TYPE, bizNo = "{{#updateReqVO.id}}",
-            success = SYSTEM_ROLE_UPDATE_SUCCESS)
+    @LogRecord(type = SYSTEM_ROLE_TYPE, subType = SYSTEM_ROLE_UPDATE_SUB_TYPE, bizNo = "{{#updateReqVO.id}}", success = SYSTEM_ROLE_UPDATE_SUCCESS)
     public void updateRole(RoleSaveReqVO updateReqVO) {
         // 1.1 校验是否可以更新
         RoleDO role = validateRoleForUpdate(updateReqVO.getId());
@@ -107,8 +105,7 @@ public class RoleServiceImpl implements RoleService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     @CacheEvict(value = RedisKeyConstants.ROLE, key = "#id")
-    @LogRecord(type = SYSTEM_ROLE_TYPE, subType = SYSTEM_ROLE_DELETE_SUB_TYPE, bizNo = "{{#id}}",
-            success = SYSTEM_ROLE_DELETE_SUCCESS)
+    @LogRecord(type = SYSTEM_ROLE_TYPE, subType = SYSTEM_ROLE_DELETE_SUB_TYPE, bizNo = "{{#id}}", success = SYSTEM_ROLE_DELETE_SUCCESS)
     public void deleteRole(Long id) {
         // 1. 校验是否可以更新
         RoleDO role = validateRoleForUpdate(id);
@@ -142,7 +139,7 @@ public class RoleServiceImpl implements RoleService {
      *
      * @param name 角色名字
      * @param code 角色额编码
-     * @param id 角色编号
+     * @param id   角色编号
      */
     @VisibleForTesting
     void validateRoleDuplicate(String name, String code, Long id) {
@@ -190,12 +187,17 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    @Cacheable(value = RedisKeyConstants.ROLE, key = "#id",
-            unless = "#result == null")
     public RoleDO getRoleFromCache(Long id) {
-        return roleMapper.selectById(id);
+        if (id == null) {
+            return null;
+        }
+        return getSelf().getRoleFromCache0(id);
     }
 
+    @Cacheable(value = RedisKeyConstants.ROLE, key = "#p0", unless = "#result == null")
+    RoleDO getRoleFromCache0(Long id) {
+        return roleMapper.selectById(id);
+    }
 
     @Override
     public List<RoleDO> getRoleListByStatus(Collection<Integer> statuses) {
@@ -220,9 +222,12 @@ public class RoleServiceImpl implements RoleService {
         if (CollectionUtil.isEmpty(ids)) {
             return Collections.emptyList();
         }
-        // 这里采用 for 循环从缓存中获取，主要考虑 Spring CacheManager 无法批量操作的问题
+        List<Long> validIds = ids.stream().filter(Objects::nonNull).distinct().toList();
+        if (validIds.isEmpty()) {
+            return Collections.emptyList();
+        }
         RoleServiceImpl self = getSelf();
-        return CollectionUtils.convertList(ids, self::getRoleFromCache);
+        return CollectionUtils.convertList(validIds, self::getRoleFromCache);
     }
 
     @Override
@@ -236,7 +241,7 @@ public class RoleServiceImpl implements RoleService {
             return false;
         }
         RoleServiceImpl self = getSelf();
-        return ids.stream().anyMatch(id -> {
+        return ids.stream().filter(Objects::nonNull).anyMatch(id -> {
             RoleDO role = self.getRoleFromCache(id);
             return role != null && RoleCodeEnum.isSuperAdmin(role.getCode());
         });
