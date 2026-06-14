@@ -16,6 +16,7 @@ import cn.iocoder.yudao.framework.apilog.core.annotation.ApiAccessLog;
 import cn.iocoder.yudao.framework.apilog.core.enums.OperateTypeEnum;
 import cn.iocoder.yudao.framework.common.pojo.PageParam;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.module.oms.controller.admin.common.vo.OmsManualStatusReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.outboundorder.vo.OutboundCreateReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.preoutbound.vo.PreOutboundItemsReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.preoutbound.vo.PreOutboundPageReqVO;
@@ -97,6 +98,14 @@ public class PreOutboundController  {
         @PutMapping("/{id}")
     public CommonResult<Void> update(@PathVariable Long id, @RequestBody PreOutboundUpdateReqVO bo) {
         preOutboundService.updateByBo(id, bo);
+        return success(null);
+    }
+
+    @PreAuthorize("@ss.hasPermission('oms:preOutbound:manualStatus')")
+    @ApiAccessLog(operateType = UPDATE)
+    @PutMapping("/{id}/manual-status")
+    public CommonResult<Void> manualStatus(@PathVariable Long id, @Valid @RequestBody OmsManualStatusReqVO bo) {
+        preOutboundService.manualAdjustStatus(id, bo);
         return success(null);
     }
 

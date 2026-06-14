@@ -10,6 +10,7 @@ import cn.iocoder.yudao.module.wms.dal.dataobject.location.WmsLocationDO;
 import cn.iocoder.yudao.module.wms.dal.dataobject.zone.WmsZoneDO;
 import cn.iocoder.yudao.module.wms.dal.mysql.location.WmsLocationMapper;
 import cn.iocoder.yudao.module.wms.dal.mysql.zone.WmsZoneMapper;
+import cn.iocoder.yudao.module.org.framework.datapermission.annotation.OrgDataScope;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -32,17 +33,20 @@ public class WmsZoneServiceImpl implements WmsZoneService {
     private WmsLocationMapper locationMapper;
 
     @Override
+    @OrgDataScope(tableClass = WmsZoneDO.class, warehouseColumn = "warehouse_id")
     public PageResult<WmsZoneRespVO> getZonePage(WmsZonePageReqVO pageReqVO) {
         PageResult<WmsZoneDO> page = zoneMapper.selectPage(pageReqVO);
         return new PageResult<>(toRespList(page.getList()), page.getTotal());
     }
 
     @Override
+    @OrgDataScope(tableClass = WmsZoneDO.class, warehouseColumn = "warehouse_id")
     public List<WmsZoneRespVO> getZoneList(WmsZonePageReqVO pageReqVO) {
         return toRespList(zoneMapper.selectList(zoneMapper.buildWrapper(pageReqVO)));
     }
 
     @Override
+    @OrgDataScope(tableClass = WmsZoneDO.class, warehouseColumn = "warehouse_id")
     public WmsZoneRespVO getZone(Long id) {
         WmsZoneDO row = zoneMapper.selectById(id);
         return row == null ? null : BeanUtils.toBean(row, WmsZoneRespVO.class);
@@ -68,6 +72,7 @@ public class WmsZoneServiceImpl implements WmsZoneService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @OrgDataScope(tableClass = WmsZoneDO.class, warehouseColumn = "warehouse_id")
     public void updateZone(WmsZoneSaveReqVO updateReqVO) {
         WmsZoneDO entity = BeanUtils.toBean(updateReqVO, WmsZoneDO.class);
         validateZone(entity, entity.getId());
@@ -79,6 +84,7 @@ public class WmsZoneServiceImpl implements WmsZoneService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @OrgDataScope(tableClass = WmsZoneDO.class, warehouseColumn = "warehouse_id")
     public void changeZoneStatus(Long id, String status) {
         if (id == null || StrUtil.isBlank(status)) {
             throw exception(WMS_PARAM_INVALID);
@@ -91,6 +97,7 @@ public class WmsZoneServiceImpl implements WmsZoneService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @OrgDataScope(tableClass = WmsZoneDO.class, warehouseColumn = "warehouse_id")
     public void deleteZoneList(List<Long> ids) {
         for (Long id : ids) {
             long count = locationMapper.selectCount(Wrappers.<WmsLocationDO>lambdaQuery()

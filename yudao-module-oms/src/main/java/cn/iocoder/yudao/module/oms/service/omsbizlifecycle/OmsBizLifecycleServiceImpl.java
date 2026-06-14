@@ -12,6 +12,7 @@ import cn.iocoder.yudao.module.oms.dal.mysql.biz.BizRootMapper;
 import cn.iocoder.yudao.module.oms.dal.mysql.cargoorder.CargoOrderMapper;
 import cn.iocoder.yudao.module.oms.dal.mysql.cargoorder.CargoOrderNodeTraceMapper;
 import cn.iocoder.yudao.module.oms.service.omsbizlifecycle.OmsBizLifecycleService;
+import cn.iocoder.yudao.module.oms.support.OmsStatusTransitionGuard;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,6 +64,12 @@ public class OmsBizLifecycleServiceImpl implements OmsBizLifecycleService {
         }
         Date actualTime = nodeTime == null ? new Date() : nodeTime;
         String fromNode = resolveCurrentNode(order);
+        if (!isControlledRollbackAction(action)) {
+            OmsStatusTransitionGuard.requireAllowed("cargo order", OmsStatusTransitionGuard.CARGO_ALLOWED,
+                fromNode, nextNode);
+        } else {
+            OmsStatusTransitionGuard.requireKnown("cargo order", OmsStatusTransitionGuard.CARGO_FLOW, nextNode);
+        }
 
         updateBizRoot(order, nextNode, actualTime);
         updateCargoOrder(order, nextNode, actualTime);
@@ -78,6 +85,12 @@ public class OmsBizLifecycleServiceImpl implements OmsBizLifecycleService {
             }
         }
         return order.getFulfillmentStatus();
+    }
+
+    private boolean isControlledRollbackAction(String action) {
+        return "manualAdjustStatus".equals(action)
+            || "removeOutboundItem".equals(action)
+            || "deleteOutboundOrder".equals(action);
     }
 
     private void updateBizRoot(CargoOrderDO order, String nextNode, Date actualTime) {

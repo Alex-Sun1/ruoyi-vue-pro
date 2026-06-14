@@ -16,6 +16,7 @@ import cn.iocoder.yudao.module.wms.dal.mysql.devanningorder.WmsDevanningOrderTra
 import cn.iocoder.yudao.module.wms.service.devanningorder.WmsDevanningOrderService;
 import cn.iocoder.yudao.module.wms.service.no.WmsNoGenerateService;
 import cn.iocoder.yudao.module.oms.api.devanning.OmsContainerDevanningSyncService;
+import cn.iocoder.yudao.module.org.framework.datapermission.annotation.OrgDataScope;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
@@ -46,17 +47,20 @@ public class WmsDevanningOrderServiceImpl implements WmsDevanningOrderService {
     private OmsContainerDevanningSyncService omsSyncService;
 
     @Override
+    @OrgDataScope(tableClass = WmsDevanningOrderDO.class, warehouseColumn = "warehouse_id")
     public PageResult<WmsDevanningOrderRespVO> getDevanningOrderPage(WmsDevanningOrderPageReqVO pageReqVO) {
         PageResult<WmsDevanningOrderDO> page = orderMapper.selectPage(pageReqVO);
         return new PageResult<>(BeanUtils.toBean(page.getList(), WmsDevanningOrderRespVO.class), page.getTotal());
     }
 
     @Override
+    @OrgDataScope(tableClass = WmsDevanningOrderDO.class, warehouseColumn = "warehouse_id")
     public List<WmsDevanningOrderRespVO> getDevanningOrderList(WmsDevanningOrderPageReqVO pageReqVO) {
         return BeanUtils.toBean(orderMapper.selectList(orderMapper.buildWrapper(pageReqVO)), WmsDevanningOrderRespVO.class);
     }
 
     @Override
+    @OrgDataScope(tableClass = WmsDevanningOrderDO.class, warehouseColumn = "warehouse_id")
     public WmsDevanningOrderRespVO getDevanningOrder(Long id) {
         WmsDevanningOrderDO row = orderMapper.selectById(id);
         if (row == null) {
@@ -90,6 +94,7 @@ public class WmsDevanningOrderServiceImpl implements WmsDevanningOrderService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @OrgDataScope(tableClass = WmsDevanningOrderDO.class, warehouseColumn = "warehouse_id")
     public void updateDevanningOrder(WmsDevanningOrderSaveReqVO updateReqVO) {
         WmsDevanningOrderDO existing = requireOrder(updateReqVO.getId());
         assertNotTerminal(existing);
@@ -108,6 +113,7 @@ public class WmsDevanningOrderServiceImpl implements WmsDevanningOrderService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @OrgDataScope(tableClass = WmsDevanningOrderDO.class, warehouseColumn = "warehouse_id")
     public void deleteDevanningOrderList(List<Long> ids) {
         for (Long id : ids) {
             WmsDevanningOrderDO order = requireOrder(id);

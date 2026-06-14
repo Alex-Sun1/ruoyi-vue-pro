@@ -18,6 +18,7 @@ import cn.iocoder.yudao.framework.apilog.core.enums.OperateTypeEnum;
 import cn.iocoder.yudao.framework.common.pojo.PageParam;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.oms.controller.admin.bizattachment.vo.BizAttachmentSaveReqVO;
+import cn.iocoder.yudao.module.oms.controller.admin.common.vo.OmsManualStatusReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.cargoorder.vo.CargoOrderSaveReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.cargoorder.vo.CargoOrderHoldReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.cargoorder.vo.CargoOrderMergeBackReqVO;
@@ -296,6 +297,14 @@ public class CargoOrderController  {
     }
 
     // =================== 预出单 ===================
+
+    @PreAuthorize("@ss.hasPermission('oms:cargoOrder:manualStatus')")
+    @ApiAccessLog(operateType = UPDATE)
+    @PutMapping("/{id}/manual-status")
+    public CommonResult<Void> manualStatus(@PathVariable Long id, @Valid @RequestBody OmsManualStatusReqVO bo) {
+        cargoOrderService.manualAdjustStatus(id, bo);
+        return success(null);
+    }
 
     @PreAuthorize("@ss.hasPermission('oms:cargoOrder:createPreOutbound')")
     @ApiAccessLog(operateType = UPDATE)

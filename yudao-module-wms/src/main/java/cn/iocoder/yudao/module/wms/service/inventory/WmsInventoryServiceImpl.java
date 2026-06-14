@@ -46,6 +46,7 @@ import cn.iocoder.yudao.module.oms.dal.dataobject.cargoorder.CargoOrderDO;
 import cn.iocoder.yudao.module.oms.dal.dataobject.cargoorder.CargoOrderShipmentDO;
 import cn.iocoder.yudao.module.oms.dal.mysql.cargoorder.CargoOrderMapper;
 import cn.iocoder.yudao.module.oms.dal.mysql.cargoorder.CargoOrderShipmentMapper;
+import cn.iocoder.yudao.module.org.framework.datapermission.annotation.OrgDataScope;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
@@ -99,18 +100,21 @@ public class WmsInventoryServiceImpl implements WmsInventoryService {
     private CargoOrderShipmentMapper cargoOrderShipmentMapper;
 
     @Override
+    @OrgDataScope(tableClass = WmsInventoryDO.class, warehouseColumn = "warehouse_id")
     public PageResult<WmsInventoryRespVO> getInventoryPage(WmsInventoryPageReqVO pageReqVO) {
         PageResult<WmsInventoryDO> page = inventoryMapper.selectPage(pageReqVO);
         return new PageResult<>(BeanUtils.toBean(page.getList(), WmsInventoryRespVO.class), page.getTotal());
     }
 
     @Override
+    @OrgDataScope(tableClass = WmsInventoryDO.class, warehouseColumn = "warehouse_id")
     public WmsInventoryRespVO getInventory(Long id) {
         WmsInventoryDO row = inventoryMapper.selectById(id);
         return row == null ? null : BeanUtils.toBean(row, WmsInventoryRespVO.class);
     }
 
     @Override
+    @OrgDataScope(tableClass = WmsInventoryDO.class, warehouseColumn = "warehouse_id")
     public WmsInventoryStatsRespVO getInventoryStats(WmsInventoryPageReqVO pageReqVO) {
         List<WmsInventoryDO> inventories = inventoryMapper.selectList(inventoryMapper.buildWrapper(pageReqVO));
         WmsInventoryStatsRespVO stats = new WmsInventoryStatsRespVO();
@@ -133,6 +137,7 @@ public class WmsInventoryServiceImpl implements WmsInventoryService {
     }
 
     @Override
+    @OrgDataScope(tableClass = WmsPalletDO.class, warehouseColumn = "warehouse_id")
     public PageResult<WmsPalletRespVO> getPalletPage(WmsPalletPageReqVO pageReqVO) {
         PageResult<WmsPalletDO> page = palletMapper.selectPage(pageReqVO);
         List<WmsPalletRespVO> list = BeanUtils.toBean(page.getList(), WmsPalletRespVO.class);

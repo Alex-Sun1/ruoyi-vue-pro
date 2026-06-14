@@ -24,6 +24,7 @@ import cn.iocoder.yudao.module.org.framework.datapermission.annotation.OrgDataSc
 import cn.iocoder.yudao.framework.common.pojo.PageParam;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils;
+import cn.iocoder.yudao.module.oms.controller.admin.common.vo.OmsManualStatusReqVO;
 import cn.iocoder.yudao.module.oms.dal.dataobject.containerorder.ContainerCargoOrderRelDO;
 import cn.iocoder.yudao.module.oms.dal.dataobject.containerorder.ContainerOrderTraceDO;
 import cn.iocoder.yudao.module.oms.dal.dataobject.cargoorder.CargoOrderShipmentDO;
@@ -57,6 +58,7 @@ import cn.iocoder.yudao.module.oms.service.containerorder.ContainerOrderService;
 import cn.iocoder.yudao.module.oms.support.ContainerPrePlanSummaryService;
 import org.springframework.beans.factory.ObjectProvider;
 import cn.iocoder.yudao.module.oms.support.OmsLambdaQueryHelper;
+import cn.iocoder.yudao.module.oms.support.OmsStatusTransitionGuard;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -251,6 +253,8 @@ public class ContainerOrderServiceImpl implements ContainerOrderService {
         if (StrUtil.equals(existing.getContainerStatus(), bo.getTargetStatus())) {
             return true;
         }
+        OmsStatusTransitionGuard.requireForward("container order", OmsStatusTransitionGuard.CONTAINER_FLOW,
+            existing.getContainerStatus(), bo.getTargetStatus());
         ContainerOrderDO update = new ContainerOrderDO();
         update.setId(id);
         update.setContainerStatus(bo.getTargetStatus());
@@ -282,6 +286,25 @@ public class ContainerOrderServiceImpl implements ContainerOrderService {
                 bridge.syncPickupFromOms(id, pickupTime);
             }
         }
+        return updated;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Boolean manualAdjustStatus(Long id, OmsManualStatusReqVO bo) {
+        OmsStatusTransitionGuard.requireManualReason(bo.getReason());
+        ContainerOrderDO existing = baseMapper.selectById(id);
+        if (existing == null) {
+            throw exception(OMS_BIZ_ERROR, "container order not found");
+        }
+        if (StrUtil.equals(existing.getContainerStatus(), bo.getTargetStatus())) {
+            return true;
+        }
+        ContainerOrderDO update = new ContainerOrderDO();
+        update.setId(id);
+        update.setContainerStatus(bo.getTargetStatus());
+        boolean updated = baseMapper.updateById(update) > 0;
+        saveTrace(existing, existing.getContainerStatus(), bo.getTargetStatus(), "manualAdjustStatus", bo.getReason());
         return updated;
     }
 
@@ -1027,6 +1050,14 @@ public class ContainerOrderServiceImpl implements ContainerOrderService {
         trace.setOperatorName(SecurityFrameworkUtils.getLoginUserNickname());
         trace.setRemark(remark);
         traceMapper.insert(trace);
+    }
+
+    private String appendStatusRemark(String oldRemark, String from, String to, String reason) {
+        String operator = StrUtil.blankToDefault(SecurityFrameworkUtils.getLoginUserNickname(),
+            String.valueOf(SecurityFrameworkUtils.getLoginUserId()));
+        String line = DateUtil.formatDateTime(new Date()) + " manual status " + from + " -> " + to
+            + ", operator=" + operator + ", reason=" + reason;
+        return StrUtil.isBlank(oldRemark) ? line : oldRemark + "\n" + line;
     }
 
     private boolean isEmptyCargoOrder(CargoOrderSaveReqVO item) {

@@ -84,7 +84,7 @@ public class YmsTrailerResourceController  {
         return success(trailerResourceService.callToDock(id, dockId));
     }
 
-    @PreAuthorize("@ss.hasPermission('yms:dispatch:assignDock')")
+    @PreAuthorize("@ss.hasAnyPermissions('yms:yard:assignDock', 'yms:yard:assign', 'yms:dispatch:assignDock')")
     @PostMapping("/{id}/on-dock")
     public CommonResult<Boolean> markOnDock(@PathVariable Long id,
                               @RequestParam Long dockId,

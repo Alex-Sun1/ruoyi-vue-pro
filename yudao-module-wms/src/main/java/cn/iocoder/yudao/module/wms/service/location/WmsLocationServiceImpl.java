@@ -15,6 +15,7 @@ import cn.iocoder.yudao.module.wms.dal.dataobject.zone.WmsZoneDO;
 import cn.iocoder.yudao.module.wms.dal.mysql.location.WmsLocationMapper;
 import cn.iocoder.yudao.module.wms.dal.mysql.pallet.WmsPalletMapper;
 import cn.iocoder.yudao.module.wms.dal.mysql.zone.WmsZoneMapper;
+import cn.iocoder.yudao.module.org.framework.datapermission.annotation.OrgDataScope;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,7 @@ public class WmsLocationServiceImpl implements WmsLocationService {
     private WmsPalletMapper palletMapper;
 
     @Override
+    @OrgDataScope(tableClass = WmsLocationDO.class, warehouseColumn = "warehouse_id")
     public PageResult<WmsLocationRespVO> getLocationPage(WmsLocationPageReqVO pageReqVO) {
         PageResult<WmsLocationDO> page = locationMapper.selectPage(pageReqVO);
         List<WmsLocationRespVO> list = toRespList(page.getList());
@@ -54,6 +56,7 @@ public class WmsLocationServiceImpl implements WmsLocationService {
     }
 
     @Override
+    @OrgDataScope(tableClass = WmsLocationDO.class, warehouseColumn = "warehouse_id")
     public List<WmsLocationRespVO> getLocationList(WmsLocationPageReqVO pageReqVO) {
         List<WmsLocationRespVO> list = toRespList(locationMapper.selectList(locationMapper.buildWrapper(pageReqVO)));
         enrichInventory(list);
@@ -61,6 +64,7 @@ public class WmsLocationServiceImpl implements WmsLocationService {
     }
 
     @Override
+    @OrgDataScope(tableClass = WmsLocationDO.class, warehouseColumn = "warehouse_id")
     public WmsLocationRespVO getLocation(Long id) {
         WmsLocationDO row = locationMapper.selectById(id);
         if (row == null) {
@@ -88,6 +92,7 @@ public class WmsLocationServiceImpl implements WmsLocationService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @OrgDataScope(tableClass = WmsLocationDO.class, warehouseColumn = "warehouse_id")
     public void updateLocation(WmsLocationSaveReqVO updateReqVO) {
         WmsLocationDO entity = BeanUtils.toBean(updateReqVO, WmsLocationDO.class);
         fillZoneSnapshot(entity);
@@ -99,6 +104,7 @@ public class WmsLocationServiceImpl implements WmsLocationService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @OrgDataScope(tableClass = WmsLocationDO.class, warehouseColumn = "warehouse_id")
     public void changeLocationStatus(WmsLocationBatchStatusReqVO reqVO) {
         if (!LOCATION_STATUS.contains(reqVO.getStatus())) {
             throw exception(WMS_LOCATION_STATUS_INVALID);
@@ -113,6 +119,7 @@ public class WmsLocationServiceImpl implements WmsLocationService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    @OrgDataScope(tableClass = WmsLocationDO.class, warehouseColumn = "warehouse_id")
     public void deleteLocationList(List<Long> ids) {
         for (Long id : ids) {
             long count = palletMapper.selectCount(Wrappers.<WmsPalletDO>lambdaQuery()

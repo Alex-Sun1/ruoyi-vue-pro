@@ -18,6 +18,7 @@ import cn.iocoder.yudao.framework.common.pojo.PageParam;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.oms.dal.dataobject.outboundorder.OutboundOrderDO;
 import cn.iocoder.yudao.module.oms.controller.admin.bizattachment.vo.BizAttachmentSaveReqVO;
+import cn.iocoder.yudao.module.oms.controller.admin.common.vo.OmsManualStatusReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.outboundorder.vo.OutboundOrderItemsReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.outboundorder.vo.OutboundOrderPageReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.bizattachment.vo.BizAttachmentRespVO;
@@ -101,6 +102,14 @@ public class OutboundOrderController  {
         @PostMapping("/{id}/confirm-outbounded")
     public CommonResult<Void> confirmOutbounded(@PathVariable Long id) {
         outboundOrderService.confirmOutbounded(id);
+        return success(null);
+    }
+
+    @PreAuthorize("@ss.hasPermission('oms:outboundOrder:manualStatus')")
+    @ApiAccessLog(operateType = UPDATE)
+    @PutMapping("/{id}/manual-status")
+    public CommonResult<Void> manualStatus(@PathVariable Long id, @Valid @RequestBody OmsManualStatusReqVO bo) {
+        outboundOrderService.manualAdjustStatus(id, bo);
         return success(null);
     }
 

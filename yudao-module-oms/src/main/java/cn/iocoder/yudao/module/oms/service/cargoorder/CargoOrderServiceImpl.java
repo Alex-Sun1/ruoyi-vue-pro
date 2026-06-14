@@ -14,6 +14,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageParam;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils;
+import cn.iocoder.yudao.module.oms.controller.admin.common.vo.OmsManualStatusReqVO;
 import cn.iocoder.yudao.module.oms.dal.dataobject.biz.BizRootDO;
 import cn.iocoder.yudao.module.oms.dal.dataobject.cargoorder.CargoOrderDO;
 import cn.iocoder.yudao.module.oms.dal.dataobject.biz.BizAttachmentDO;
@@ -45,6 +46,7 @@ import cn.iocoder.yudao.module.oms.dal.mysql.biz.BizRootMapper;
 import cn.iocoder.yudao.module.oms.service.cargoorder.CargoOrderService;
 import cn.iocoder.yudao.module.oms.service.omsbizlifecycle.OmsBizLifecycleService;
 import cn.iocoder.yudao.module.org.framework.datapermission.annotation.OrgDataScope;
+import cn.iocoder.yudao.module.oms.support.OmsStatusTransitionGuard;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -144,12 +147,12 @@ public class CargoOrderServiceImpl implements CargoOrderService {
         String currentStatus = bo.getFulfillmentStatus();
         bo.setFulfillmentStatus(null);
         bo.prepareMultiValueQuery();
-        List<Map<String, Object>> raw = baseMapper.selectStatusCount(bo);
+        List<CargoOrderRespVO> rows = baseMapper.selectPageList(new Page<>(1, Integer.MAX_VALUE), bo).getRecords();
         bo.setFulfillmentStatus(currentStatus);
-        Map<String, Long> result = raw.stream().collect(Collectors.toMap(
-            this::resolveStatusCountKey,
-            this::resolveStatusCountValue
-        ));
+        Map<String, Long> result = rows.stream()
+            .map(CargoOrderRespVO::getFulfillmentStatus)
+            .filter(StrUtil::isNotBlank)
+            .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
         result.put("", result.values().stream().mapToLong(Long::longValue).sum());
         return result;
     }
@@ -228,6 +231,15 @@ public class CargoOrderServiceImpl implements CargoOrderService {
     @Transactional(rollbackFor = Exception.class)
     public Boolean updateByBo(CargoOrderSaveReqVO bo) {
         CargoOrderDO order = BeanUtils.toBean(bo, CargoOrderDO.class);
+        order.setFulfillmentStatus(null);
+        order.setOrderStatus(null);
+        order.setPreOutboundStatus(null);
+        order.setOutboundOrderStatus(null);
+        order.setAppointmentStatus(null);
+        order.setPodStatus(null);
+        order.setBillingStatus(null);
+        order.setHoldStatus(null);
+        order.setSplitStatus(null);
         baseMapper.updateById(order);
         return Boolean.TRUE;
     }
@@ -450,6 +462,18 @@ public class CargoOrderServiceImpl implements CargoOrderService {
             throw exception(OMS_BIZ_ERROR, "已完成或已取消的订单不能取消");
         }
         return lifecycleService.transitionCargo(id, STATUS_CANCELLED, "cancel", remark);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Boolean manualAdjustStatus(Long id, OmsManualStatusReqVO bo) {
+        OmsStatusTransitionGuard.requireManualReason(bo.getReason());
+        CargoOrderDO order = requireOrder(id);
+        String fromStatus = currentLifecycleNode(order);
+        if (StrUtil.equals(fromStatus, bo.getTargetStatus())) {
+            return true;
+        }
+        return lifecycleService.transitionCargo(id, bo.getTargetStatus(), "manualAdjustStatus", bo.getReason());
     }
 
     // ======================== 预出单 ========================
@@ -914,6 +938,7 @@ public class CargoOrderServiceImpl implements CargoOrderService {
     protected Boolean doStatusTransition(Long id, String fromStatus, String toStatus, String action, String remark) {
         CargoOrderDO order = requireOrder(id);
         validateStatus(order, fromStatus);
+        OmsStatusTransitionGuard.requireAllowed("cargo order", OmsStatusTransitionGuard.CARGO_ALLOWED, fromStatus, toStatus);
         return lifecycleService.transitionCargo(id, toStatus, action, remark);
     }
 

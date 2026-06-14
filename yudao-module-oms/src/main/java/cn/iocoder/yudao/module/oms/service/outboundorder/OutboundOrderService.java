@@ -4,6 +4,7 @@ import cn.iocoder.yudao.framework.common.pojo.PageParam;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.oms.dal.dataobject.outboundorder.OutboundOrderDO;
 import cn.iocoder.yudao.module.oms.controller.admin.bizattachment.vo.BizAttachmentSaveReqVO;
+import cn.iocoder.yudao.module.oms.controller.admin.common.vo.OmsManualStatusReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.outboundorder.vo.OutboundOrderItemsReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.outboundorder.vo.OutboundOrderPageReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.bizattachment.vo.BizAttachmentRespVO;
@@ -24,6 +25,7 @@ public interface OutboundOrderService {
     Boolean confirmAppointment(Long id);
     Boolean confirmOutbounded(Long id);
     Boolean confirmSigned(Long id);
+    Boolean manualAdjustStatus(Long id, OmsManualStatusReqVO bo);
     List<OutboundOrderItemRespVO> queryItems(Long id);
     Boolean addItems(Long id, OutboundOrderItemsReqVO bo);
     Boolean removeItem(Long id, Long itemId);

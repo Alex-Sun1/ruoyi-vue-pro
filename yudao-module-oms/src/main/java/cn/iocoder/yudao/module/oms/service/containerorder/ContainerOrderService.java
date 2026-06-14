@@ -8,6 +8,7 @@ import cn.iocoder.yudao.module.oms.controller.admin.cargoorder.vo.CargoOrderSave
 import cn.iocoder.yudao.module.oms.controller.admin.containerorder.vo.ContainerOrderSaveReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.containerorder.vo.ContainerOrderPageReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.containerorder.vo.ContainerOrderStatusReqVO;
+import cn.iocoder.yudao.module.oms.controller.admin.common.vo.OmsManualStatusReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.bizattachment.vo.BizAttachmentSaveReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.bizattachment.vo.BizAttachmentRespVO;
 import cn.iocoder.yudao.module.oms.controller.admin.containerorder.vo.ContainerOrderRespVO;
@@ -45,6 +46,8 @@ public interface ContainerOrderService {
     List<CargoOrderSaveReqVO> parseImportCargoOrders(List<cn.iocoder.yudao.module.oms.controller.admin.containerorder.vo.ContainerCargoOrderImportExcelVO> rows);
 
     Boolean updateStatus(Long id, ContainerOrderStatusReqVO bo);
+
+    Boolean manualAdjustStatus(Long id, OmsManualStatusReqVO bo);
 
     List<BizAttachmentRespVO> queryAttachments(Long id);
 

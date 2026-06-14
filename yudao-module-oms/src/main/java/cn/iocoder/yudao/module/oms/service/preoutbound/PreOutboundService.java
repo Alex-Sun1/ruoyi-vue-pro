@@ -2,6 +2,7 @@ package cn.iocoder.yudao.module.oms.service.preoutbound;
 
 import cn.iocoder.yudao.framework.common.pojo.PageParam;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.module.oms.controller.admin.common.vo.OmsManualStatusReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.outboundorder.vo.OutboundCreateReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.preoutbound.vo.PreOutboundItemsReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.preoutbound.vo.PreOutboundPageReqVO;
@@ -24,5 +25,6 @@ public interface PreOutboundService {
     Map<String, Long> queryStatusCount(PreOutboundPageReqVO bo);
     OutboundOrderRespVO convert(Long id, OutboundCreateReqVO bo);
     Boolean updateByBo(Long id, PreOutboundUpdateReqVO bo);
+    Boolean manualAdjustStatus(Long id, OmsManualStatusReqVO bo);
     Boolean deleteWithValid(Long id);
 }

@@ -12,6 +12,7 @@ import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageParam;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils;
+import cn.iocoder.yudao.module.oms.controller.admin.common.vo.OmsManualStatusReqVO;
 import cn.iocoder.yudao.module.oms.dal.dataobject.biz.BizAttachmentDO;
 import cn.iocoder.yudao.module.oms.dal.dataobject.cargoorder.CargoOrderDO;
 import cn.iocoder.yudao.module.oms.dal.dataobject.outboundorder.OutboundOrderDO;
@@ -33,6 +34,7 @@ import cn.iocoder.yudao.module.oms.integration.OmsYmsDispatchIntegration;
 import cn.iocoder.yudao.module.oms.service.outboundorder.OutboundOrderService;
 import cn.iocoder.yudao.module.oms.service.omsbizlifecycle.OmsBizLifecycleService;
 import cn.iocoder.yudao.module.org.framework.datapermission.annotation.OrgDataScope;
+import cn.iocoder.yudao.module.oms.support.OmsStatusTransitionGuard;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -109,6 +111,9 @@ public class OutboundOrderServiceImpl implements OutboundOrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Boolean updateByBo(OutboundOrderDO bo) {
+        bo.setOutboundStatus(null);
+        bo.setAppointmentStatus(null);
+        bo.setPodStatus(null);
         return baseMapper.updateById(bo) > 0;
     }
 
@@ -125,6 +130,9 @@ public class OutboundOrderServiceImpl implements OutboundOrderService {
         List<OutboundOrderItemDO> items = outboundOrderItemMapper.selectList(
             Wrappers.<OutboundOrderItemDO>lambdaQuery()
                 .eq(OutboundOrderItemDO::getOutboundOrderId, id));
+        if (!items.isEmpty()) {
+            throw exception(OMS_BIZ_ERROR, "cannot delete outbound order with items in normal flow");
+        }
         for (OutboundOrderItemDO item : items) {
             CargoOrderDO cargoUpdate = new CargoOrderDO();
             cargoUpdate.setId(item.getCargoOrderId());
@@ -150,6 +158,11 @@ public class OutboundOrderServiceImpl implements OutboundOrderService {
     @Transactional(rollbackFor = Exception.class)
     public Boolean complete(Long id, String remark) {
         OutboundOrderDO order = baseMapper.selectById(id);
+        OmsStatusTransitionGuard.requireForward("outbound order", OmsStatusTransitionGuard.OUTBOUND_FLOW,
+            order == null ? null : order.getOutboundStatus(), "COMPLETED");
+        if (order != null && !"POD_UPLOADED".equals(order.getOutboundStatus())) {
+            throw exception(OMS_BIZ_ERROR, "outbound order must upload POD before complete");
+        }
         if (order == null) throw exception(OMS_BIZ_ERROR, "出库单不存在");
         if ("COMPLETED".equals(order.getOutboundStatus())) throw exception(OMS_BIZ_ERROR, "出库单已完成");
         OutboundOrderDO update = new OutboundOrderDO();
@@ -168,6 +181,7 @@ public class OutboundOrderServiceImpl implements OutboundOrderService {
             cargoUpdate.setId(item.getCargoOrderId());
             cargoUpdate.setOutboundOrderStatus("COMPLETED");
             cargoOrderMapper.updateById(cargoUpdate);
+            lifecycleService.transitionCargo(item.getCargoOrderId(), "BILLED", "completeOutboundOrder", remark, now);
             lifecycleService.transitionCargo(item.getCargoOrderId(), "COMPLETED", "completeOutboundOrder", remark, now);
         }
         return Boolean.TRUE;
@@ -177,6 +191,8 @@ public class OutboundOrderServiceImpl implements OutboundOrderService {
     @Transactional(rollbackFor = Exception.class)
     public Boolean confirmAppointment(Long id) {
         OutboundOrderDO order = baseMapper.selectById(id);
+        OmsStatusTransitionGuard.requireForward("outbound order", OmsStatusTransitionGuard.OUTBOUND_FLOW,
+            order == null ? null : order.getOutboundStatus(), "APPOINTMENT_CONFIRMED");
         if (order == null) throw exception(OMS_BIZ_ERROR, "出库单不存在");
         if (!"CREATED".equals(order.getOutboundStatus())) {
             throw exception(OMS_BIZ_ERROR, "只有已创建状态的出库单可以确认预约");
@@ -201,6 +217,8 @@ public class OutboundOrderServiceImpl implements OutboundOrderService {
     @Transactional(rollbackFor = Exception.class)
     public Boolean confirmOutbounded(Long id) {
         OutboundOrderDO order = baseMapper.selectById(id);
+        OmsStatusTransitionGuard.requireForward("outbound order", OmsStatusTransitionGuard.OUTBOUND_FLOW,
+            order == null ? null : order.getOutboundStatus(), "OUTBOUNDED");
         if (order == null) throw exception(OMS_BIZ_ERROR, "出库单不存在");
         if (!List.of("CREATED", "APPOINTMENT_CONFIRMED").contains(order.getOutboundStatus())) {
             throw exception(OMS_BIZ_ERROR, "只有已创建或已确认预约状态的出库单可以确认出库");
@@ -288,6 +306,8 @@ public class OutboundOrderServiceImpl implements OutboundOrderService {
         attachment.setUploadTime(new Date());
         attachmentMapper.insert(attachment);
         if ("POD".equals(bo.getAttachmentType()) && !"COMPLETED".equals(order.getOutboundStatus())) {
+            OmsStatusTransitionGuard.requireForward("outbound order", OmsStatusTransitionGuard.OUTBOUND_FLOW,
+                order.getOutboundStatus(), "POD_UPLOADED");
             Date podNow = new Date();
             OutboundOrderDO podUpdate = new OutboundOrderDO();
             podUpdate.setId(id);
@@ -309,6 +329,11 @@ public class OutboundOrderServiceImpl implements OutboundOrderService {
     @Transactional(rollbackFor = Exception.class)
     public Boolean confirmSigned(Long id) {
         OutboundOrderDO order = baseMapper.selectById(id);
+        OmsStatusTransitionGuard.requireForward("outbound order", OmsStatusTransitionGuard.OUTBOUND_FLOW,
+            order == null ? null : order.getOutboundStatus(), "SIGNED");
+        if (order != null && !"OUTBOUNDED".equals(order.getOutboundStatus())) {
+            throw exception(OMS_BIZ_ERROR, "outbound order must be outbounded before signed");
+        }
         if (order == null) throw exception(OMS_BIZ_ERROR, "出库单不存在");
         if (List.of("SIGNED", "POD_UPLOADED", "COMPLETED").contains(order.getOutboundStatus())) {
             throw exception(OMS_BIZ_ERROR, "出库单已签收或已完成");
@@ -323,9 +348,43 @@ public class OutboundOrderServiceImpl implements OutboundOrderService {
             Wrappers.<OutboundOrderItemDO>lambdaQuery()
                 .eq(OutboundOrderItemDO::getOutboundOrderId, id));
         for (OutboundOrderItemDO item : items) {
+            lifecycleService.transitionCargo(item.getCargoOrderId(), "DELIVERING", "confirmOutboundSigned", "auto delivering before signed", now);
             lifecycleService.transitionCargo(item.getCargoOrderId(), "DELIVERED", "confirmOutboundSigned", "确认签收", now);
         }
         return Boolean.TRUE;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Boolean manualAdjustStatus(Long id, OmsManualStatusReqVO bo) {
+        OmsStatusTransitionGuard.requireManualReason(bo.getReason());
+        OmsStatusTransitionGuard.requireKnown("outbound order", OmsStatusTransitionGuard.OUTBOUND_FLOW, bo.getTargetStatus());
+        OutboundOrderDO order = baseMapper.selectById(id);
+        if (order == null) throw exception(OMS_BIZ_ERROR, "outbound order not found");
+        if (StrUtil.equals(order.getOutboundStatus(), bo.getTargetStatus())) {
+            return true;
+        }
+        Date now = new Date();
+        OutboundOrderDO update = new OutboundOrderDO();
+        update.setId(id);
+        update.setOutboundStatus(bo.getTargetStatus());
+        if ("OUTBOUNDED".equals(bo.getTargetStatus())) update.setActualOutboundTime(now);
+        if ("POD_UPLOADED".equals(bo.getTargetStatus())) update.setPodUploadTime(now);
+        if ("COMPLETED".equals(bo.getTargetStatus())) update.setCompletedTime(now);
+        update.setRemark(bo.getReason());
+        baseMapper.updateById(update);
+        String cargoTarget = mapOutboundToCargoStatus(bo.getTargetStatus());
+        if (cargoTarget != null) {
+            for (OutboundOrderItemDO item : listItems(id)) {
+                CargoOrderDO cargoUpdate = new CargoOrderDO();
+                cargoUpdate.setId(item.getCargoOrderId());
+                cargoUpdate.setOutboundOrderStatus(bo.getTargetStatus());
+                cargoOrderMapper.updateById(cargoUpdate);
+                lifecycleService.transitionCargo(item.getCargoOrderId(), cargoTarget,
+                    "manualAdjustStatus", bo.getReason(), now);
+            }
+        }
+        return true;
     }
 
     @Override
@@ -405,6 +464,18 @@ public class OutboundOrderServiceImpl implements OutboundOrderService {
         update.setOutboundOrderTime(null);
         cargoOrderMapper.updateById(update);
         lifecycleService.transitionCargo(cargoOrderId, "INBOUNDED", "removeOutboundItem", "移出出库单回退至已入库");
+    }
+
+    private String mapOutboundToCargoStatus(String outboundStatus) {
+        return switch (outboundStatus) {
+            case "CREATED" -> "OUTBOUND_ORDERED";
+            case "APPOINTMENT_CONFIRMED" -> "DELIVERY_APPOINTED";
+            case "OUTBOUNDED" -> "OUTBOUNDED";
+            case "SIGNED" -> "DELIVERED";
+            case "POD_UPLOADED" -> "POD_UPLOADED";
+            case "COMPLETED" -> "COMPLETED";
+            default -> null;
+        };
     }
 
     private void validatePoolOrder(CargoOrderDO order) {

@@ -13,6 +13,8 @@ import jakarta.annotation.Resource;
 import cn.hutool.core.util.StrUtil;
 import cn.iocoder.yudao.framework.common.pojo.PageParam;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
+import cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils;
+import cn.iocoder.yudao.module.oms.controller.admin.common.vo.OmsManualStatusReqVO;
 import cn.iocoder.yudao.module.oms.dal.dataobject.biz.BizRootRelationDO;
 import cn.iocoder.yudao.module.oms.dal.dataobject.cargoorder.CargoOrderDO;
 import cn.iocoder.yudao.module.oms.dal.dataobject.outboundorder.OutboundOrderDO;
@@ -36,6 +38,7 @@ import cn.iocoder.yudao.module.oms.service.preoutbound.PreOutboundService;
 import cn.iocoder.yudao.module.oms.service.omsbizlifecycle.OmsBizLifecycleService;
 import cn.iocoder.yudao.module.oms.support.ContainerPrePlanSummaryService;
 import cn.iocoder.yudao.module.oms.support.OmsLambdaQueryHelper;
+import cn.iocoder.yudao.module.oms.support.OmsStatusTransitionGuard;
 import cn.iocoder.yudao.module.oms.support.OutboundReadinessUtils;
 import cn.iocoder.yudao.module.org.framework.datapermission.annotation.OrgDataScope;
 import org.springframework.dao.DuplicateKeyException;
@@ -182,6 +185,9 @@ public class PreOutboundServiceImpl implements PreOutboundService {
         if (item == null || !Objects.equals(item.getPreOutboundId(), id)) {
             throw exception(OMS_BIZ_ERROR, "pre-outbound item not found");
         }
+        if (listItems(id).size() <= 1) {
+            throw exception(OMS_BIZ_ERROR, "cannot remove the last pre-outbound item in normal flow");
+        }
         Long cargoOrderId = item.getCargoOrderId();
         releaseCargoOrder(cargoOrderId);
         bizRootRelationMapper.deactivateByTargetAndCargo("PRE_OUTBOUND", id, cargoOrderId);
@@ -204,6 +210,9 @@ public class PreOutboundServiceImpl implements PreOutboundService {
         if (preOutbound == null) throw exception(OMS_BIZ_ERROR, "pre-outbound order not found");
         if ("CONVERTED".equals(preOutbound.getPreOutboundStatus())) throw exception(OMS_BIZ_ERROR, "pre-outbound order converted");
         if ("CANCELLED".equals(preOutbound.getPreOutboundStatus())) throw exception(OMS_BIZ_ERROR, "pre-outbound order cancelled");
+        if (!"READY_TO_CONVERT".equals(preOutbound.getPreOutboundStatus())) {
+            throw exception(OMS_BIZ_ERROR, "pre-outbound order is not ready to convert");
+        }
         ensureLegacyItem(preOutbound);
         List<PreOutboundItemDO> items = listItems(id);
         if (items.isEmpty()) throw exception(OMS_BIZ_ERROR, "pre-outbound has no items");
@@ -338,6 +347,24 @@ public class PreOutboundServiceImpl implements PreOutboundService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public Boolean manualAdjustStatus(Long id, OmsManualStatusReqVO bo) {
+        OmsStatusTransitionGuard.requireManualReason(bo.getReason());
+        PreOutboundDO preOutbound = baseMapper.selectById(id);
+        if (preOutbound == null) {
+            throw exception(OMS_BIZ_ERROR, "pre-outbound order not found");
+        }
+        if (StrUtil.equals(preOutbound.getPreOutboundStatus(), bo.getTargetStatus())) {
+            return true;
+        }
+        PreOutboundDO update = new PreOutboundDO();
+        update.setId(id);
+        update.setPreOutboundStatus(bo.getTargetStatus());
+        update.setRemark(appendStatusRemark(preOutbound.getRemark(), preOutbound.getPreOutboundStatus(), bo.getTargetStatus(), bo.getReason()));
+        return baseMapper.updateById(update) > 0;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean deleteWithValid(Long id) {
         PreOutboundDO preOutbound = baseMapper.selectById(id);
         if (preOutbound == null) throw exception(OMS_BIZ_ERROR, "pre-outbound order not found");
@@ -377,6 +404,9 @@ public class PreOutboundServiceImpl implements PreOutboundService {
         PreOutboundDO preOutbound = baseMapper.selectById(id);
         if (preOutbound == null) {
             throw exception(OMS_BIZ_ERROR, "pre-outbound order not found");
+        }
+        if (List.of("CONVERTED", "CANCELLED").contains(preOutbound.getPreOutboundStatus())) {
+            throw exception(OMS_BIZ_ERROR, "pre-outbound order status cannot be edited");
         }
         return preOutbound;
     }
@@ -558,6 +588,8 @@ public class PreOutboundServiceImpl implements PreOutboundService {
         update.setActualWeight(sum(orders, CargoOrderDO::getActualWeight));
         update.setActualCbm(sum(orders, CargoOrderDO::getActualCbm));
         String status = OutboundReadinessUtils.resolveGroupPreOutboundStatus(readinessList);
+        OmsStatusTransitionGuard.requireForward("pre-outbound order", OmsStatusTransitionGuard.PRE_OUTBOUND_FLOW,
+            preOutbound.getPreOutboundStatus(), status);
         update.setPreOutboundStatus(status);
         update.setReadyTime("READY_TO_CONVERT".equals(status) ? new Date() : null);
         baseMapper.updateById(update);
@@ -614,6 +646,14 @@ public class PreOutboundServiceImpl implements PreOutboundService {
 
     private String defaultDirection(String direction) {
         return StrUtil.isBlank(direction) ? "DELIVERY" : direction;
+    }
+
+    private String appendStatusRemark(String oldRemark, String from, String to, String reason) {
+        String operator = StrUtil.blankToDefault(SecurityFrameworkUtils.getLoginUserNickname(),
+            String.valueOf(SecurityFrameworkUtils.getLoginUserId()));
+        String line = new Date() + " manual status " + from + " -> " + to
+            + ", operator=" + operator + ", reason=" + reason;
+        return StrUtil.isBlank(oldRemark) ? line : oldRemark + "\n" + line;
     }
 
     private void resetHeaderToEmpty(PreOutboundDO preOutbound) {

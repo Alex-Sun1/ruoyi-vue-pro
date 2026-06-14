@@ -73,7 +73,7 @@ public class YardDockController {
         return success(yardDockService.getYardDockPage(pageReqVO));
     }
 
-    @GetMapping("/free-list")
+    @GetMapping({"/free-list", "/free"})
     @Operation(summary = "获得仓库空闲道口列表")
     @Parameter(name = "warehouseId", required = true)
     @PreAuthorize("@ss.hasPermission('yard:dock:list')")

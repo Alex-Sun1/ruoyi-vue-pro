@@ -83,7 +83,7 @@ public class YmsDispatchController  {
     }
 
     /** 分配/取消Dock */
-    @PreAuthorize("@ss.hasPermission('yms:yard:assignDock')")
+    @PreAuthorize("@ss.hasAnyPermissions('yms:yard:assignDock', 'yms:yard:assign')")
     @PostMapping("/assign-dock")
     public CommonResult<Boolean> assignDock(@Valid @RequestBody YmsAssignDockReqVO bo) {
         return success(dispatchService.assignDock(bo));

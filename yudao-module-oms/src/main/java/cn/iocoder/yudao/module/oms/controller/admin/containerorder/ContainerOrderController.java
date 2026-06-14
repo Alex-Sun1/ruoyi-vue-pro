@@ -18,6 +18,7 @@ import cn.iocoder.yudao.framework.apilog.core.enums.OperateTypeEnum;
 import cn.iocoder.yudao.framework.common.pojo.PageParam;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.oms.controller.admin.bizattachment.vo.BizAttachmentSaveReqVO;
+import cn.iocoder.yudao.module.oms.controller.admin.common.vo.OmsManualStatusReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.containerorder.vo.ContainerCargoOrderBatchReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.containerorder.vo.ContainerOrderSaveReqVO;
 import cn.iocoder.yudao.module.oms.controller.admin.containerorder.vo.ContainerOrderPageReqVO;
@@ -126,6 +127,15 @@ public class ContainerOrderController  {
     public CommonResult<Void> updateStatus(@NotNull(message = "主键不能为空") @PathVariable Long id,
                                 @Valid @RequestBody ContainerOrderStatusReqVO bo) {
         containerOrderService.updateStatus(id, bo);
+        return success(null);
+    }
+
+    @PreAuthorize("@ss.hasPermission('oms:containerOrder:manualStatus')")
+    @ApiAccessLog(operateType = UPDATE)
+    @PutMapping("/{id}/manual-status")
+    public CommonResult<Void> manualStatus(@NotNull(message = "id is required") @PathVariable Long id,
+                                           @Valid @RequestBody OmsManualStatusReqVO bo) {
+        containerOrderService.manualAdjustStatus(id, bo);
         return success(null);
     }
 
